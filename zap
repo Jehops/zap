@@ -77,7 +77,7 @@ is_pint () {
 }
 
 safe () {
-    echo $1 | cut -f1 -d'/' | \
+    echo "$1" | cut -f1 -d'/' | \
         grep -qv "scan: resilver in progress\|scan: scrub in progress\|state: DEGRADED"
 }
 
@@ -87,13 +87,14 @@ ss_ts () {
             date -j -f'%Y-%m-%dT%H:%M:%S%z' "$1" +%s
             ;;
         'Linux')
-            date --date=$1 +%s
+            gdate=$(echo "$1" | sed 's/T/ /')
+            date -d"$gdate" +%s
             ;;
     esac
 }
 
 ttl2s () {
-    echo $1 | sed 's/d/*86400/;s/w/*604800/;s/m/*2592000/;s/y/*31536000/' | bc
+    echo "$1" | sed 's/d/*86400/;s/w/*604800/;s/m/*2592000/;s/y/*31536000/' | bc
 }
 
 warn () {
@@ -124,11 +125,11 @@ delete () {
     now_ts=$(date '+%s')
     for i in `zfs list -H -t snap -o name`; do
         if ! safe $i; then continue; fi
-        if $(echo $i | grep -q -e $zptn); then
-	    create_time=$(echo $i | \
+        if $(echo "$i" | grep -q -e $zptn); then
+	    create_time=$(echo "$i" | \
                               sed 's/^..*@ZAP_//;s/--[0-9]\{1,4\}[dwmy]$//;s/p/+/')
             create_ts=$(ss_ts ${create_time})
-	    ttls=$(ttl2s $(echo $i | grep -o '[0-9]\{1,4\}[dwmy]$'))
+	    ttls=$(ttl2s $(echo "$i" | grep -o '[0-9]\{1,4\}[dwmy]$'))
             if ! is_pint $create_ts || ! is_pint $ttls; then
                 warn "Skipping $i. Could not determine its expiration time."
             else
