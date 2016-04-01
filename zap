@@ -11,7 +11,7 @@
 #  - uses neither configuration files nor custom ZFS properites - all
 #    information is supplied when zap is invoked and stored in snapshot names
 #  - uses /namespaces/ to avoid collisions with other snapshots
-#  - creates and deletes snapshots only when it makes sense to [fn:so1][fn:so2]
+#  - creates and destroys snapshots only when it makes sense to [1,2]
 #  - written in POSIX sh
 #
 # [1] zap was influenced by zfSnap, which is under a BEER-WARE license.  We owe
@@ -21,8 +21,7 @@
 # last snapshot.  If the filesystem hasn't changed, then the timestamp of the
 # newest snapshot is updated.
 #
-# [3] If the pool is being scrubbed or reslivered, or the pool is in a degraded
-# state, zap will not create or delete snapshots.
+# [3] If the pool is in a DEGRADED state, zap will not destroy snapshots.
 #
 # ===============================================================================
 # This script was written by Joseph Mingrone <jrm@ftfl.ca>.  Do whatever you
@@ -49,7 +48,7 @@ DESCRIPTION
    Create ZFS snapshots with the specified time to live (TTL).  TTL is of the
    form [0-9]{1,4}[dwmy].
 
-   -d   Delete expired snapshots.
+   -d   Destroy expired snapshots.
 
 EXAMPLES
    Create snapshots that will last for 1 day, 3 weeks, 6 months, and 1 year:
@@ -57,7 +56,7 @@ EXAMPLES
       $ ${0##*/} 3w tank zroot/usr/home/nox
       $ ${0##*/} 6m zroot/usr/home/jrm zroot/usr/home/mem
       $ ${0##*/} 1y tank/backup
-   Delete snapshots past expiration:
+   Destroy snapshots past expiration:
       $ ${0##*/} -d
 
 VERSION
