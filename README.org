@@ -1,0 +1,67 @@
+* zap - Maintain ZFS snapshots with cron [1]
+
+** Overview
+   Run zap without arguments or visit https://github.com/Jehops/zap.
+*** Key features
+    - uses neither configuration files nor custom ZFS properites - all
+      information is supplied when zap is invoked and stored in snapshot names
+    - uses /namespaces/ to avoid collisions with other snapshots
+    - creates and deletes snapshots only when it makes sense to [2][3]
+    - written in POSIX sh
+
+** Synopsis
+   =$ zap TTL pool/filesystem ...=
+
+   =$ zap -d=
+
+** Description
+   Create snapshots of ZFS filesystems with the specified time to live (TTL).
+   TTL is of the form /[0-9]{1,4}[dwmy]/.
+
+   -d   Delete expired snapshots.
+
+** Examples
+   Create snapshots that will last for 1 day, 3 weeks, 6 months, and 1 year:
+
+   =$ zap 1d zroot/ROOT/default=
+
+   =$ zap 3w tank/backup zroot/usr/home/nox=
+
+   =$ zap 6m zroot/usr/home/jrm zroot/usr/home/mem=
+
+   =$ zap 1y tank/backup=
+
+   Delete snapshots past expiration:
+
+   =$ zap -d=
+
+*** Automatically create and delete snapshots with cron
+    =$ cat /etc/crontab=
+#+BEGIN_SRC sh
+SHELL=/bin/sh
+PATH=/etc:/bin:/sbin:/usr/bin:/usr/sbin
+
+#minute	hour	mday	month	wday	who	command
+# create snapshots
+*/15	*	*	*	*	root	zap 1d zroot/ROOT/default zroot/usr/home/jrm
+10	14	*	*	*	root	zap 1w zroot/ROOT/default zroot/usr/home/jrm
+22	14	*	*	*	root	zap 1w zroot/ROOT/default zroot/usr/home/jrm
+22	16	*	*	1	root	zap 1m zroot/ROOT/default zroot/usr/home/jrm
+
+# delete snapshots
+44	*/4	*	*	*	root	zap -d
+#+END_SRC
+
+** License
+   zap was written by Joseph Mingrone <jrm@ftfl.ca>.  Do whatever you like with
+   it, but please retain this notice.
+
+[1] zap was influenced by zfSnap, which is under a BEER-WARE license.
+We owe the author a beer.
+
+[2] New snapshots are only created when a file system has changed
+since the last snapshot.  If the filesystem hasn't changed, then the timestamp
+of the newest snapshot is updated.
+
+[3] If the pool is being scrubbed or reslivered, or the pool is in a
+degraded state, zap will not create or delete snapshots.
