@@ -56,6 +56,8 @@ PATH=/etc:/bin:/sbin:/usr/bin:/usr/sbin
    zap was written by Joseph Mingrone <jrm@ftfl.ca>.  Do whatever you like with
    it, but please retain this notice.
 
+-----
+
 [1] zap was influenced by zfSnap, which is under a BEER-WARE license.
 We owe the author a beer.
 
