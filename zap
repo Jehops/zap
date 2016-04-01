@@ -75,12 +75,6 @@ is_pint () {
     return 0
 }
 
-safe () {
-    prob=$(echo $1 | cut -f1 -d'/' | xargs zpool status | \
-               grep "DEGRADED\|FAULTED\|OFFLINE\|REMOVED\|UNAVAIL")
-    [ "$prob" == '' ]
-}
-
 ss_ts () {
     case $os in
         'Darwin'|'FreeBSD')
