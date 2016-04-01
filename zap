@@ -106,7 +106,7 @@ create () {
     ttl="$1"
     shift
     p=$*
-    date=$(date '+%Y-%m-%dT%H:%M:%S%z')
+    date=$(date '+%Y-%m-%dT%H:%M:%S%z' | sed 's/+/p/')
     for i in $p; do
         if ! safe $i; then continue; fi
         r=$(zfs list -rHo name,written -t snap -S name $i | \
@@ -126,7 +126,7 @@ delete () {
         if ! safe $i; then continue; fi
         if $(echo $i | grep -q -e $zptn); then
 	    create_time=$(echo $i | \
-                              sed 's/^..*@ZAP_//;s/--[0-9]\{1,4\}[dwmy]$//')
+                              sed 's/^..*@ZAP_//;s/--[0-9]\{1,4\}[dwmy]$//;s/p/+/')
             create_ts=$(ss_ts ${create_time})
 	    ttls=$(ttl2s $(echo $i | grep -o '[0-9]\{1,4\}[dwmy]$'))
             if ! is_pint $create_ts || ! is_pint $ttls; then
