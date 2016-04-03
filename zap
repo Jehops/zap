@@ -100,17 +100,15 @@ warn () {
 create () {
     ttl="$1"
     shift
-    p=$*
     date=$(date '+%Y-%m-%dT%H:%M:%S%z' | sed 's/+/p/')
-    for i in $p; do
-        prob=$(echo "$i" | cut -f1 -d'/' | xargs zpool status | \
-                   grep "FAULTED\|OFFLINE\|REMOVED\|UNAVAIL")
-        if [ "$prob" != '' ]; then
+    for i in "$@"; do
+        if echo "$i" | cut -f1 -d'/' | xargs zpool status | \
+                grep "FAULTED\|OFFLINE\|REMOVED\|UNAVAIL"; then
             warn "zap skipped creating a snapshot for $i because of pool state!"
         else
             r=$(zfs list -rHo name,written -t snap -S name "$i" | \
                     grep "${i}${zptn}" | grep -e "--${ttl}[[:space:]]" -m1)
-            set -- "$r"
+            set -- $r
             if [ "$2" != "0" ]; then
 	        zfs snapshot "${i}@ZAP_${date}--${ttl}"
             else
@@ -123,9 +121,8 @@ create () {
 destroy () {
     now_ts=$(date '+%s')
     for i in $(zfs list -H -t snap -o name); do
-        prob=$(echo "$i" | cut -f1 -d'/' | xargs zpool status | \
-                   grep "DEGRADED\|FAULTED\|OFFLINE\|REMOVED\|UNAVAIL")
-        if [ "$prob" != '' ]; then
+        if echo "$i" | cut -f1 -d'/' | xargs zpool status \
+                | grep -q "DEGRADED\|FAULTED\|OFFLINE\|REMOVED\|UNAVAIL"; then
             warn "zap skipped destroying $i because of pool state!"
         else
             if echo "$i" | grep -q -e "$zptn"; then
@@ -158,7 +155,7 @@ case $os in
 esac
 
 if echo "$1" | grep -q -e "^[0-9]\{1,4\}[dwmy]$" && [ $# -gt 1 ]; then
-    create "$*"
+    create "$@"
 elif [ "$1" = '-d' ]; then
     destroy
 else
