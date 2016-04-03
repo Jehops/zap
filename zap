@@ -125,7 +125,8 @@ destroy () {
             warn "zap skipped destroying $i because of pool state!"
         else
             if echo "$i" | grep -q -e "$zptn"; then
-	        create_time=$(echo "$i" | sed 's/^..*@ZAP_//;s/--[0-9]\{1,4\}[dwmy]$//;s/p/+/')
+	        create_time=$(echo "$i" | sed 's/^..*@ZAP_//;
+s/--[0-9]\{1,4\}[dwmy]$//;s/p/+/')
                 create_ts=$(ss_ts "$create_time")
 	        ttls=$(ttl2s "$(echo "$i" | grep -o '[0-9]\{1,4\}[dwmy]$')")
                 if ! is_pint "$create_ts" || ! is_pint "$ttls"; then
