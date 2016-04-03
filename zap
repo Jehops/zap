@@ -8,7 +8,7 @@
 #
 # Key features:
 #
-#  - uses neither configuration files nor custom ZFS properites - all
+#  - uses neither configuration files nor custom ZFS properties - all
 #    information is supplied when zap is invoked and stored in snapshot names
 #  - uses /namespaces/ to avoid collisions with other snapshots
 #  - creates and destroys snapshots only when it makes sense to [1,2]
@@ -18,7 +18,7 @@
 # the authors a beer.
 #
 # [2] New snapshots are only created when a file system has changed since the
-# last snapshot.  If the filesystem hasn't changed, then the timestamp of the
+# last snapshot.  If the file system hasn't changed, then the timestamp of the
 # newest snapshot is updated.
 #
 # [3] If the pool is in a DEGRADED state, zap will not destroy snapshots.
