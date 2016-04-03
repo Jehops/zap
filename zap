@@ -108,11 +108,10 @@ create () {
         else
             r=$(zfs list -rHo name,written -t snap -S name "$i" | \
                     grep "${i}${zptn}" | grep -e "--${ttl}[[:space:]]" -m1)
-            set -- $r
-            if [ "$2" != "0" ]; then
+            if [ "${r##*[[:space:]]}" != "0" ]; then
 	        zfs snapshot "${i}@ZAP_${date}--${ttl}"
             else
-                zfs rename "$1" "${i}@ZAP_${date}--${ttl}"
+                zfs rename "${r%%[[:space:]]*}" "${i}@ZAP_${date}--${ttl}"
             fi
         fi
     done
