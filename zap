@@ -103,14 +103,14 @@ create () {
     p=$*
     date=$(date '+%Y-%m-%dT%H:%M:%S%z' | sed 's/+/p/')
     for i in $p; do
-        prob=$(echo $i | cut -f1 -d'/' | xargs zpool status | \
+        prob=$(echo "$i" | cut -f1 -d'/' | xargs zpool status | \
                    grep "FAULTED\|OFFLINE\|REMOVED\|UNAVAIL")
         if [ "$prob" != '' ]; then
             warn "zap skipped creating a snapshot for $i because of pool state!"
         else
-            r=$(zfs list -rHo name,written -t snap -S name $i | \
+            r=$(zfs list -rHo name,written -t snap -S name "$i" | \
                     grep "${i}${zptn}" | grep -e "--${ttl}[[:space:]]" -m1)
-            set -- $r
+            set -- "$r"
             if [ "$2" != "0" ]; then
 	        zfs snapshot "${i}@ZAP_${date}--${ttl}"
             else
@@ -122,21 +122,21 @@ create () {
 
 destroy () {
     now_ts=$(date '+%s')
-    for i in `zfs list -H -t snap -o name`; do
-        prob=$(echo $i | cut -f1 -d'/' | xargs zpool status | \
+    for i in $(zfs list -H -t snap -o name); do
+        prob=$(echo "$i" | cut -f1 -d'/' | xargs zpool status | \
                    grep "DEGRADED\|FAULTED\|OFFLINE\|REMOVED\|UNAVAIL")
         if [ "$prob" != '' ]; then
             warn "zap skipped destroying $i because of pool state!"
         else
-            if $(echo "$i" | grep -q -e $zptn); then
+            if echo "$i" | grep -q -e "$zptn"; then
 	        create_time=$(echo "$i" | sed 's/^..*@ZAP_//;s/--[0-9]\{1,4\}[dwmy]$//;s/p/+/')
-                create_ts=$(ss_ts ${create_time})
-	        ttls=$(ttl2s $(echo "$i" | grep -o '[0-9]\{1,4\}[dwmy]$'))
-                if ! is_pint $create_ts || ! is_pint $ttls; then
+                create_ts=$(ss_ts "$create_time")
+	        ttls=$(ttl2s "$(echo "$i" | grep -o '[0-9]\{1,4\}[dwmy]$')")
+                if ! is_pint "$create_ts" || ! is_pint "$ttls"; then
                     warn "Skipping $i. Could not determine its expiration time."
                 else
-	            expire_ts=$(($create_ts + $ttls))
-	            [ ${now_ts} -gt ${expire_ts} ] && zfs destroy $i
+	            expire_ts=$(("$create_ts" + "$ttls"))
+	            [ "$now_ts" -gt "$expire_ts" ] && zfs destroy "$i"
                 fi
 	    fi
         fi
@@ -158,7 +158,7 @@ case $os in
 esac
 
 if echo "$1" | grep -q -e "^[0-9]\{1,4\}[dwmy]$" && [ $# -gt 1 ]; then
-    create $*
+    create "$*"
 elif [ "$1" = '-d' ]; then
     destroy
 else
