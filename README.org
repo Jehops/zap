@@ -15,7 +15,7 @@
    =$ zap -d=
 
 ** Description
-   Create snapshots of ZFS file systems with the specified time to live (TTL).
+   Create snapshots of ZFS filesystems with the specified time to live (TTL).
    TTL is of the form /[0-9]{1,4}[dwmy]/.
 
    -d   Destroy expired snapshots.
@@ -61,8 +61,8 @@ PATH=/etc:/bin:/sbin:/usr/bin:/usr/sbin
 [1] zap was influenced by zfSnap, which is under a BEER-WARE license.
 We owe the author a beer.
 
-[2] New snapshots are only created when a file system has changed since the last
-snapshot.  If the file system hasn't changed, then the timestamp of the newest
+[2] New snapshots are only created when a filesystem has changed since the last
+snapshot.  If the filesystem hasn't changed, then the timestamp of the newest
 snapshot is updated.
 
 [3] If the pool is in a DEGRADED state, zap will not destroy snapshots.

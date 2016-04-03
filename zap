@@ -17,8 +17,8 @@
 # [1] zap was influenced by zfSnap, which is under a BEER-WARE license.  We owe
 # the authors a beer.
 #
-# [2] New snapshots are only created when a file system has changed since the
-# last snapshot.  If the file system hasn't changed, then the timestamp of the
+# [2] New snapshots are only created when a filesystem has changed since the
+# last snapshot.  If the filesystem hasn't changed, then the timestamp of the
 # newest snapshot is updated.
 #
 # [3] If the pool is in a DEGRADED state, zap will not destroy snapshots.
@@ -41,7 +41,7 @@ NAME
    ${0##*/} - manage ZFS snapshots
 
 SYNOPSIS
-   ${0##*/} TTL pool[/files system] ...
+   ${0##*/} TTL pool[/filesystem] ...
    ${0##*/} -d
 
 DESCRIPTION
