@@ -34,7 +34,7 @@ fatal () {
 }
 
 help () {
-    readonly version=0.1.2
+    readonly version=0.1.3
 
     cat <<EOF
 NAME
