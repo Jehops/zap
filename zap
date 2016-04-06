@@ -132,7 +132,7 @@ s/--[0-9]\{1,4\}[dwmy]$//;s/p/+/')
                 if ! is_pint "$create_ts" || ! is_pint "$ttls"; then
                     warn "Skipping $i. Could not determine its expiration time."
                 else
-	            expire_ts=$(("$create_ts" + "$ttls"))
+	            expire_ts=$((create_ts + ttls))
 	            [ "$now_ts" -gt "$expire_ts" ] && zfs destroy "$i"
                 fi
 	    fi
