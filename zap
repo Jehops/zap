@@ -34,7 +34,7 @@ fatal () {
 }
 
 help () {
-    readonly version=0.1
+    readonly version=0.1.2
 
     cat <<EOF
 NAME
@@ -119,8 +119,8 @@ create () {
 
 destroy () {
     now_ts=$(date '+%s')
-    for i in $(zfs list -H -t snap -o name); do
-        if echo "$i" | cut -f1 -d'/' | xargs zpool status \
+    zfs list -H -t snap -o name | while read i; do
+        if zpool status "$(echo "$i" | sed 's/[/@].*//')" \
                 | grep -q "DEGRADED\|FAULTED\|OFFLINE\|REMOVED\|UNAVAIL"; then
             warn "zap skipped destroying $i because of pool state!"
         else
