@@ -106,16 +106,21 @@ create () {
     shift
     date=$(date '+%Y-%m-%dT%H:%M:%S%z' | sed 's/+/p/')
     for i in "$@"; do
-        if echo "$i" | cut -f1 -d'/' | xargs zpool status | \
-                grep "FAULTED\|OFFLINE\|REMOVED\|UNAVAIL"; then
+        if zpool status "$(echo "$i" | cut -f1 -d'/')" | \
+                grep -q "FAULTED\|OFFLINE\|REMOVED\|UNAVAIL"; then
             warn "zap skipped creating a snapshot for $i because of pool state!"
         else
-            r=$(zfs list -rHo name,written -t snap -S name "$i" | \
-                    grep "${i}${zptn}" | grep -e "--${ttl}[[:space:]]" -m1)
-            if [ "${r##*[[:space:]]}" != "0" ]; then
-	        zfs snapshot "${i}@ZAP_${date}--${ttl}"
+            r=$(zfs list -rHo name -t snap -S name "$i" | grep "${i}${zptn}" | \
+                    grep -e "--${ttl}[[:space:]]" -m1)
+            if [ ! -z "$r" ]; then
+                s=$(zfs get -H -o value written "$r")
+                if [ "${s}" != "0" ]; then
+	            zfs snapshot "${i}@ZAP_${date}--${ttl}"
+                else
+                    zfs rename "${r}" "${i}@ZAP_${date}--${ttl}"
+                fi
             else
-                zfs rename "${r%%[[:space:]]*}" "${i}@ZAP_${date}--${ttl}"
+                zfs snapshot "${i}@ZAP_${date}--${ttl}"
             fi
         fi
     done
@@ -123,9 +128,9 @@ create () {
 
 destroy () {
     now_ts=$(date '+%s')
-    zfs list -H -t snap -o name | while read i; do
-        if zpool status "$(echo "$i" | sed 's/[/@].*//')" \
-                | grep -q "DEGRADED\|FAULTED\|OFFLINE\|REMOVED\|UNAVAIL"; then
+    zfs list -H -t snap -o name | while read -r i; do
+        if zpool status "$(echo "$i" | sed 's/[/@].*//')" | \
+                grep -q "DEGRADED\|FAULTED\|OFFLINE\|REMOVED\|UNAVAIL"; then
             warn "zap skipped destroying $i because of pool state!"
         else
             if echo "$i" | grep -q -e "$zptn"; then
