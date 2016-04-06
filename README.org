@@ -52,6 +52,9 @@ PATH=/etc:/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/bin
 44	*/4	*	*	*	root	zap -d
 #+END_SRC
 
+** Authors
+   Joseph Mingrone <jrm@ftfl.ca>
+   Tobias Kortkamp <t@tobik.me>
 ** License
    zap was written by Joseph Mingrone <jrm@ftfl.ca>.  Do whatever you like with
    it, but please retain this notice.

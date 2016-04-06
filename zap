@@ -59,6 +59,10 @@ EXAMPLES
    Destroy snapshots past expiration:
       $ ${0##*/} -d
 
+AUTHORS
+Joseph Mingrone <jrm@ftfl.ca>
+Tobias Kortkamp <t@tobik.me>
+
 VERSION
    ${0##*/} version ${version}
 
