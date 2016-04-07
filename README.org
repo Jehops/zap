@@ -3,7 +3,7 @@
 ** Overview
    Run zap without arguments or visit https://github.com/Jehops/zap.
 *** Key features
-    - uses no configuration files
+    - no configuration files
     - uses /namespaces/ to avoid collisions with other snapshots
     - creates and destroys snapshots only when it makes sense to [2][3]
     - written in POSIX sh
