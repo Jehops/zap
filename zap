@@ -54,7 +54,7 @@ fatal () {
 }
 
 help () {
-    readonly version=0.2
+    readonly version=0.2.1
 
     cat <<EOF
 NAME
@@ -73,7 +73,7 @@ SYNOPSIS
 
    ${0##*/} -d
 
-            Destroy snapshots past expiration
+            Destroy expired snapshots.
 
 EXAMPLES
    Create snapshots that will last for 1 day, 3 weeks, 6 months, and 1 year:
@@ -89,7 +89,7 @@ EXAMPLES
       $ ${0##*/} -p 6m
       $ ${0##*/} -p 1y
 
-   Destroy snapshots past expiration:
+   Destroy expired snapshots:
       $ ${0##*/} -d
 
 AUTHORS AND CONTRIBUTORS

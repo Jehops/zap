@@ -21,7 +21,7 @@
 
    =$ zap -d=
 
-   Destroy snapshots past expiration.
+   Destroy expired snapshots.
 
 ** Examples
    Create snapshots that will last for 1 day, 3 weeks, 6 months, and 1 year:
@@ -45,7 +45,7 @@
 
    =$ zap -p 1y=
 
-   Destroy snapshots past expiration:
+   Destroy expired snapshots:
 
    =$ zap -d=
 
