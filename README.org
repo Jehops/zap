@@ -10,14 +10,17 @@
 
 ** Synopsis
    =$ zap TTL pool/filesystem ...=
+
    Create ZFS snapshots for the specified filesystems with the specified time to
    live (TTL).  TTL is of the form [0-9]{1,4}[dwmy].
 
    =$ zap -p TTL=
+
    Create ZFS snapshots with the specified TTL for filesystems with the property
    zap:snap set to "on".
 
    =$ zap -d=
+
    Destroy snapshots past expiration.
 
 ** Examples
