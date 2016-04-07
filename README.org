@@ -72,7 +72,7 @@ PATH=/etc:/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/bin
 44	*/4	*	*	*	root	zap -d
 #+END_SRC
 
-** Authors
+** Authors and Contributors
    - Joseph Mingrone <jrm@ftfl.ca>
    - Tobias Kortkamp <t@tobik.me>
 ** License

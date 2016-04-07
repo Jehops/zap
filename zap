@@ -92,7 +92,7 @@ EXAMPLES
    Destroy snapshots past expiration:
       $ ${0##*/} -d
 
-AUTHORS
+AUTHORS AND CONTRIBUTORS
 Joseph Mingrone <jrm@ftfl.ca>
 Tobias Kortkamp <t@tobik.me>
 
