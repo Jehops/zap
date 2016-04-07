@@ -3,22 +3,22 @@
 ** Overview
    Run zap without arguments or visit https://github.com/Jehops/zap.
 *** Key features
-    - uses neither configuration files nor custom ZFS properties - all
-      information is supplied when zap is invoked and stored in snapshot names
+    - uses no configuration files
     - uses /namespaces/ to avoid collisions with other snapshots
     - creates and destroys snapshots only when it makes sense to [2][3]
     - written in POSIX sh
 
 ** Synopsis
    =$ zap TTL pool/filesystem ...=
+   Create ZFS snapshots for the specified filesystems with the specified time to
+   live (TTL).  TTL is of the form [0-9]{1,4}[dwmy].
+
+   =$ zap -p TTL=
+   Create ZFS snapshots with the specified TTL for filesystems with the property
+   zap:snap set to "on".
 
    =$ zap -d=
-
-** Description
-   Create snapshots of ZFS filesystems with the specified time to live (TTL).
-   TTL is of the form /[0-9]{1,4}[dwmy]/.
-
-   -d   Destroy expired snapshots.
+   Destroy snapshots past expiration.
 
 ** Examples
    Create snapshots that will last for 1 day, 3 weeks, 6 months, and 1 year:
@@ -31,6 +31,17 @@
 
    =$ zap 1y tank/backup=
 
+   Create the same snapshots for filesystems with the zap:snap property set to
+   "on":
+
+   =$ zap -p 1d=
+
+   =$ zap -p 3w=
+
+   =$ zap -p 6m=
+
+   =$ zap -p 1y=
+
    Destroy snapshots past expiration:
 
    =$ zap -d=
@@ -42,11 +53,17 @@ SHELL=/bin/sh
 PATH=/etc:/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/bin
 
 #minute	hour	mday	month	wday	who	command
-# create snapshots
+# create specified snapshots
 */15	*	*	*	*	root	zap 1d zroot/ROOT/default zroot/usr/home/jrm
 10	14	*	*	*	root	zap 1w zroot/ROOT/default zroot/usr/home/jrm
 22	14	*	*	*	root	zap 1w zroot/ROOT/default zroot/usr/home/jrm
 22	16	*	*	1	root	zap 1m zroot/ROOT/default zroot/usr/home/jrm
+
+# or create snapshots based on the zap:snap property
+*/15	*	*	*	*	root	zap -p 1d
+10	14	*	*	*	root	zap -p 1w
+22	14	*	*	*	root	zap -p 1w
+22	16	*	*	1	root	zap -p 1m
 
 # destroy snapshots
 44	*/4	*	*	*	root	zap -d
