@@ -124,7 +124,7 @@ create () {
             warn "zap skipped creating a snapshot for $i because of pool state!"
         else
             r=$(zfs list -rHo name -t snap -S name "$i" | grep "${i}${zptn}" | \
-                    grep -e "--${ttl}[[:space:]]" -m1)
+                    grep -e "--${ttl}" -m1)
             if [ ! -z "$r" ]; then
                 s=$(zfs get -H -o value written "$r")
                 if [ "${s}" != "0" ]; then
