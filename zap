@@ -34,15 +34,15 @@
 # Key features:
 #
 #  - no configuration files
-#  - uses namespaces to avoid collisions with other snapshots
-#  - creates and destroys snapshots only when it makes sense to [1,2]
+#  - uses "namespaces" to avoid collisions with other snapshots
+#  - creates and destroys snapshots only when it makes sense [1,2]
 #  - written in POSIX sh
 #
 # [1] zap was influenced by zfSnap, which is under a BEER-WARE license.  We owe
 # the authors a beer.
 #
 # [2] New snapshots are only created when a filesystem has changed since the
-# last snapshot.  If the filesystem hasn't changed, then the timestamp of the
+# last snapshot.  If the filesystem has not changed, then the timestamp of the
 # newest snapshot is updated.
 #
 # [3] If the pool is in a DEGRADED state, zap will not destroy snapshots.
@@ -54,26 +54,30 @@ fatal () {
 }
 
 help () {
-    readonly version=0.2.1
+    readonly version=0.3.0
 
     cat <<EOF
 NAME
-   ${0##*/} - maintain ZFS snapshots
+   ${0##*/} -- maintain ZFS snapshots
 
 SYNOPSIS
-   ${0##*/} TTL pool[/filesystem] ...
+   ${0##*/} TTL [pool[/filesystem] ...]
+   ${0##*/} -d
 
-            Create ZFS snapshots for the specified filesystems with the
-            specified time to live (TTL).  TTL is of the form [0-9]{1,4}[dwmy].
+DESCRIPTION
+   ${0##*/} TTL [pool[/filesystem] ...]
 
-   ${0##*/} -p TTL
-
-            Create ZFS snapshots with the specified TTL for filesystems with the
-            property zap:snap set to "on".
+   Create ZFS snapshots that will expire after TTL (time to live) time has
+   elapsed.  TTL takes the form [0-9]{1,4}[dwmy], i.e., one to four digits
+   followed by a character to represent the time unit (day, week, month, or
+   year).  If [pool[/filesystem] ...] is not supplied, snapshots will be created
+   for filesystems with the property zap:snap set to "on".
 
    ${0##*/} -d
 
-            Destroy expired snapshots.
+   Destroy expired snapshots.
+
+   Run ${0##*/} with no arguments, -h, or --help to show this documentation.
 
 EXAMPLES
    Create snapshots that will last for 1 day, 3 weeks, 6 months, and 1 year:
@@ -84,10 +88,10 @@ EXAMPLES
 
    Create the same snapshots for filesystems with the zap:snap property set to
    "on"
-      $ ${0##*/} -p 1y
-      $ ${0##*/} -p 3w
-      $ ${0##*/} -p 6m
-      $ ${0##*/} -p 1y
+      $ ${0##*/} 1y
+      $ ${0##*/} 3w
+      $ ${0##*/} 6m
+      $ ${0##*/} 1y
 
    Destroy expired snapshots:
       $ ${0##*/} -d
@@ -206,11 +210,10 @@ esac
 
 if echo "$1" | grep -q -e "^[0-9]\{1,4\}[dwmy]$" && [ $# -gt 1 ]; then
     create "$@"
+elif echo "$1" | grep -q -e "^[0-9]\{1,4\}[dwmy]$" && [ $# -eq 1 ]; then
+    prop "$1"
 elif [ "$1" = '-d' ]; then
     destroy
-elif [ "$1" = '-p' ] && echo "$2" | grep -q -e "^[0-9]\{1,4\}[dwmy]$" && \
-         [ $# -eq 2 ]; then
-    prop "$2"
 else
     help
 fi

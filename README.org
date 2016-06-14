@@ -1,23 +1,23 @@
-* zap - Maintain ZFS snapshots with cron [1]
+* zap -- Maintain ZFS snapshots with cron [1]
+
+** NOTE: The command line arguments have changed in version 0.3.0!
 
 ** Overview
    Run zap without arguments or visit https://github.com/Jehops/zap.
 *** Key features
     - no configuration files
-    - uses /namespaces/ to avoid collisions with other snapshots
-    - creates and destroys snapshots only when it makes sense to [2][3]
+    - uses "namespaces" to avoid collisions with other snapshots
+    - creates and destroys snapshots only when it makes sense [2][3]
     - written in POSIX sh
 
 ** Synopsis
-   =$ zap TTL pool/filesystem ...=
+   =$ zap TTL [pool[/filesystem] ...]=
 
-   Create ZFS snapshots for the specified filesystems with the specified time to
-   live (TTL).  TTL is of the form [0-9]{1,4}[dwmy].
-
-   =$ zap -p TTL=
-
-   Create ZFS snapshots with the specified TTL for filesystems with the property
-   zap:snap set to "on".
+   Create ZFS snapshots that will expire after TTL (time to live) time has
+   elapsed.  TTL takes the form [0-9]{1,4}[dwmy], i.e., one to four digits
+   followed by a character to represent the time unit (day, week, month, or
+   year).  If [pool[/filesystem] ...] is not supplied, snapshots will be created
+   for filesystems with the property zap:snap set to "on".
 
    =$ zap -d=
 
@@ -37,13 +37,13 @@
    Create the same snapshots for filesystems with the zap:snap property set to
    "on":
 
-   =$ zap -p 1d=
+   =$ zap 1d=
 
-   =$ zap -p 3w=
+   =$ zap 3w=
 
-   =$ zap -p 6m=
+   =$ zap 6m=
 
-   =$ zap -p 1y=
+   =$ zap 1y=
 
    Destroy expired snapshots:
 
@@ -53,30 +53,29 @@
     =$ cat /etc/crontab=
 #+BEGIN_SRC sh
 SHELL=/bin/sh
-PATH=/etc:/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/bin
 
 #minute	hour	mday	month	wday	who	command
 # create specified snapshots
-*/15	*	*	*	*	root	zap 1d zroot/ROOT/default zroot/usr/home/jrm
-10	14	*	*	*	root	zap 1w zroot/ROOT/default zroot/usr/home/jrm
-22	14	*	*	*	root	zap 1w zroot/ROOT/default zroot/usr/home/jrm
-22	16	*	*	1	root	zap 1m zroot/ROOT/default zroot/usr/home/jrm
+*/15	*	*	*	*	root	/usr/local/bin/zap 1d zroot/ROOT/default zroot/usr/home/jrm
+10	14	*	*	*	root	/usr/local/bin/zap 1w zroot/ROOT/default zroot/usr/home/jrm
+22	14	*	*	*	root	/usr/local/bin/zap 1w zroot/ROOT/default zroot/usr/home/jrm
+22	16	*	*	1	root	/usr/local/bin/zap 1m zroot/ROOT/default zroot/usr/home/jrm
 
 # or create snapshots based on the zap:snap property
-*/15	*	*	*	*	root	zap -p 1d
-10	14	*	*	*	root	zap -p 1w
-22	14	*	*	*	root	zap -p 1w
-22	16	*	*	1	root	zap -p 1m
+*/15	*	*	*	*	root	/usr/local/bin/zap 1d
+10	14	*	*	*	root	/usr/local/bin/zap 1w
+22	14	*	*	*	root	/usr/local/bin/zap 1w
+22	16	*	*	1	root	/usr/local/bin/zap 1m
 
 # destroy snapshots
-44	*/4	*	*	*	root	zap -d
+44	*/4	*	*	*	root	/usr/local/bin/zap -d
 #+END_SRC
 
 ** Authors and Contributors
    - Joseph Mingrone <jrm@ftfl.ca>
    - Tobias Kortkamp <t@tobik.me>
 ** License
-   zap is relesed under a BSD 2-Clause License.  Refer to the header of each
+   zap is released under a BSD 2-Clause License.  Refer to the header of each
    source file for details.
 
 -----
@@ -85,7 +84,7 @@ PATH=/etc:/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/bin
 We owe the author a beer.
 
 [2] New snapshots are only created when a filesystem has changed since the last
-snapshot.  If the filesystem hasn't changed, then the timestamp of the newest
+snapshot.  If the filesystem has not changed, then the timestamp of the newest
 snapshot is updated.
 
 [3] If the pool is in a DEGRADED state, zap will not destroy snapshots.
