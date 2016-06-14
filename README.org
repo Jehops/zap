@@ -25,7 +25,6 @@
 
 ** Examples
    Create snapshots that will last for 1 day, 3 weeks, 6 months, and 1 year.
-
 #+BEGIN_SRC sh
    $ zap 1d zroot/ROOT/default
    $ zap 3w tank/backup zroot/usr/home/nox
@@ -35,7 +34,6 @@
 
    Create the same snapshots for filesystems with the zap:snap property set to
    "on".
-
 #+BEGIN_SRC sh
    $ zap 1d
    $ zap 3w
@@ -48,8 +46,9 @@
    =$ zap -d=
 
 *** Automatically create and destroy snapshots with cron
-    =$ cat /etc/crontab=
 #+BEGIN_SRC sh
+$ cat /etc/crontab
+
 SHELL=/bin/sh
 
 #minute	hour	mday	month	wday	who	command
