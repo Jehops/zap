@@ -26,18 +26,22 @@
 ** Examples
    Create snapshots that will last for 1 day, 3 weeks, 6 months, and 1 year.
 
-   =$ zap 1d zroot/ROOT/default=\\
-   =$ zap 3w tank/backup zroot/usr/home/nox=\\
-   =$ zap 6m zroot/usr/home/jrm zroot/usr/home/mem=\\
-   =$ zap 1y tank/backup=
+#+BEGIN_SRC sh
+   $ zap 1d zroot/ROOT/default
+   $ zap 3w tank/backup zroot/usr/home/nox
+   $ zap 6m zroot/usr/home/jrm zroot/usr/home/mem
+   $ zap 1y tank/backup
+#+END_SRC
 
    Create the same snapshots for filesystems with the zap:snap property set to
    "on".
 
-   =$ zap 1d=\\
-   =$ zap 3w=\\
-   =$ zap 6m=\\
-   =$ zap 1y=
+#+BEGIN_SRC sh
+   $ zap 1d
+   $ zap 3w
+   $ zap 6m
+   $ zap 1y
+#+END_SRC
 
    Destroy expired snapshots.
 
