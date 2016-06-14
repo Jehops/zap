@@ -37,7 +37,7 @@
    =$ zap 1d=\\
    =$ zap 3w=\\
    =$ zap 6m=\\
-   =$ zap 1y=\\
+   =$ zap 1y=
 
    Destroy expired snapshots.
 
