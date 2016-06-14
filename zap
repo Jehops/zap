@@ -77,23 +77,21 @@ DESCRIPTION
 
    Destroy expired snapshots.
 
-   Run ${0##*/} with no arguments, -h, or --help to show this documentation.
-
 EXAMPLES
-   Create snapshots that will last for 1 day, 3 weeks, 6 months, and 1 year:
+   Create snapshots that will last for 1 day, 3 weeks, 6 months, and 1 year.
       $ ${0##*/} 1d zroot/ROOT/default
       $ ${0##*/} 3w tank zroot/usr/home/nox
       $ ${0##*/} 6m zroot/usr/home/jrm zroot/usr/home/mem
       $ ${0##*/} 1y tank/backup
 
    Create the same snapshots for filesystems with the zap:snap property set to
-   "on"
+   "on".
       $ ${0##*/} 1y
       $ ${0##*/} 3w
       $ ${0##*/} 6m
       $ ${0##*/} 1y
 
-   Destroy expired snapshots:
+   Destroy expired snapshots.
       $ ${0##*/} -d
 
 AUTHORS AND CONTRIBUTORS

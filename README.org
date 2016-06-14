@@ -1,6 +1,6 @@
 * zap -- Maintain ZFS snapshots with cron [1]
 
-** NOTE: The command line arguments have changed in version 0.3.0!
+** WARNING: The command line arguments have changed in version 0.3.0!
 
 ** Overview
    Run zap without arguments or visit https://github.com/Jehops/zap.
@@ -24,7 +24,7 @@
    Destroy expired snapshots.
 
 ** Examples
-   Create snapshots that will last for 1 day, 3 weeks, 6 months, and 1 year:
+   Create snapshots that will last for 1 day, 3 weeks, 6 months, and 1 year.
 
    =$ zap 1d zroot/ROOT/default=
 
@@ -35,7 +35,7 @@
    =$ zap 1y tank/backup=
 
    Create the same snapshots for filesystems with the zap:snap property set to
-   "on":
+   "on".
 
    =$ zap 1d=
 
@@ -45,7 +45,7 @@
 
    =$ zap 1y=
 
-   Destroy expired snapshots:
+   Destroy expired snapshots.
 
    =$ zap -d=
 
