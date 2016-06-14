@@ -1,6 +1,6 @@
 * zap -- Maintain ZFS snapshots with cron [1]
 
-** WARNING: The command line arguments have changed in version 0.3.0!
+** WARNING: The command line arguments changed in version 0.3.0!
 
 ** Overview
    Run zap without arguments or visit https://github.com/Jehops/zap.
