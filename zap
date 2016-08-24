@@ -41,11 +41,7 @@
 # [1] zap was influenced by zfSnap, which is under a BEER-WARE license.  We owe
 # the authors a beer.
 #
-# [2] New snapshots are only created when a filesystem has changed since the
-# last snapshot.  If the filesystem has not changed, then the timestamp of the
-# newest snapshot is updated.
-#
-# [3] If the pool is in a DEGRADED state, zap will not destroy snapshots.
+# [2] If the pool is in a DEGRADED state, zap will not destroy snapshots.
 #
 
 fatal () {
@@ -54,7 +50,7 @@ fatal () {
 }
 
 help () {
-    readonly version=0.3.0
+    readonly version=0.4.0
 
     cat <<EOF
 NAME
@@ -145,18 +141,7 @@ create () {
                 grep -q "FAULTED\|OFFLINE\|REMOVED\|UNAVAIL"; then
             warn "zap skipped creating a snapshot for $i because of pool state!"
         else
-            r=$(zfs list -rHo name -t snap -S name "$i" | grep "${i}${zptn}" | \
-                    grep -e "--${ttl}" -m1)
-            if [ ! -z "$r" ]; then
-                s=$(zfs get -H -o value written "$r")
-                if [ "${s}" != "0" ]; then
-                    zfs snapshot "${i}@ZAP_${date}--${ttl}"
-                else
-                    zfs rename "${r}" "${i}@ZAP_${date}--${ttl}"
-                fi
-            else
-                zfs snapshot "${i}@ZAP_${date}--${ttl}"
-            fi
+            zfs snapshot "${i}@ZAP_${date}--${ttl}"
         fi
     done
 }
