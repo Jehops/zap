@@ -35,13 +35,10 @@
 #
 #  - no configuration files
 #  - uses "namespaces" to avoid collisions with other snapshots
-#  - creates and destroys snapshots only when it makes sense [1,2]
 #  - written in POSIX sh
 #
 # [1] zap was influenced by zfSnap, which is under a BEER-WARE license.  We owe
 # the authors a beer.
-#
-# [2] If the pool is in a DEGRADED state, zap will not destroy snapshots.
 #
 
 fatal () {
@@ -50,7 +47,7 @@ fatal () {
 }
 
 help () {
-    readonly version=0.4.0
+    readonly version=0.4.1
 
     cat <<EOF
 NAME
