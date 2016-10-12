@@ -134,8 +134,9 @@ create () {
     shift
     date=$(date '+%Y-%m-%dT%H:%M:%S%z' | sed 's/+/p/')
     for i in "$@"; do
+        skip="scrub in progress\|FAULTED\|OFFLINE\|REMOVED\|UNAVAIL"
         if zpool status "$(echo "$i" | cut -f1 -d'/')" | \
-                grep -q "FAULTED\|OFFLINE\|REMOVED\|UNAVAIL"; then
+                grep -q "$skip"; then
             warn "zap skipped creating a snapshot for $i because of pool state!"
         else
             zfs snapshot "${i}@ZAP_${date}--${ttl}"
@@ -146,8 +147,9 @@ create () {
 destroy () {
     now_ts=$(date '+%s')
     zfs list -H -t snap -o name | while read -r i; do
+        skip="scrub in progress\|DEGRADED\|FAULTED\|OFFLINE\|REMOVED\|UNAVAIL"
         if zpool status "$(echo "$i" | sed 's/[/@].*//')" | \
-                grep -q "DEGRADED\|FAULTED\|OFFLINE\|REMOVED\|UNAVAIL"; then
+                grep -q "$skip"; then
             warn "zap skipped destroying $i because of pool state!"
         else
             if echo "$i" | grep -q -e "$zptn"; then
