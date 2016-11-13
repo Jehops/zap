@@ -54,11 +54,11 @@ NAME
    ${0##*/} -- maintain ZFS snapshots
 
 SYNOPSIS
-   ${0##*/} [-rv] TTL [pool[/filesystem] ...]
+   ${0##*/} [-v] TTL [[-r] pool[/filesystem] ...]
    ${0##*/} -d [-v]
 
 DESCRIPTION
-   ${0##*/} [-rv] TTL [pool[/filesystem] ...]
+   ${0##*/} [-v] TTL [[-r] pool[/filesystem] ...]
 
    Create ZFS snapshots that will expire after TTL (time to live) time has
    elapsed.  TTL takes the form [0-9]{1,4}[dwmy], i.e., one to four digits
@@ -66,8 +66,8 @@ DESCRIPTION
    year).  If [pool[/filesystem] ...] is not supplied, snapshots will be created
    for filesystems with the property zap:snap set to "on".
 
-   -r  Snapshots will be created for all dependent datasets.
    -v  Be verbose.
+   -r  Snapshots will be created for all dependent datasets.
 
    ${0##*/} -d [-v]
 
@@ -78,9 +78,12 @@ DESCRIPTION
 EXAMPLES
    Create snapshots that will last for 1 day, 3 weeks, 6 months, and 1 year.
       $ ${0##*/} 1d zroot/ROOT/default
-      $ ${0##*/} 3w tank zroot/usr/home/nox
+      $ ${0##*/} 3w tank zroot/usr/home/nox -r zroot/var
       $ ${0##*/} 6m zroot/usr/home/jrm zroot/usr/home/mem
       $ ${0##*/} 1y tank/backup
+
+   Create the snapshots recursively for zroot/var.  Be verbose.
+      $ ${0##*/} -v 3w tank zroot/usr/home/nox -r zroot/var
 
    Create the same snapshots for filesystems with the zap:snap property set to
    "on".
@@ -113,7 +116,7 @@ is_pint () {
 }
 
 ss_ts () {
-    case $os in
+    case $OS in
         'Darwin'|'FreeBSD')
             date -j -f'%Y-%m-%dT%H:%M:%S%z' "$1" +%s
             ;;
@@ -133,62 +136,84 @@ warn () {
 }
 
 # ===============================================================================
+create_parse () {
+    ttl="$1"
+    shift
 
-create () {
-    while getopts ":s" opt; do
+    [ -n "$v_OPT" ] && printf "%s\nCreating snapshots...\n" "$(date)"
+
+    while getopts ":r:" opt; do
         case $opt in
-            s)  s_opt=true ;;
-            \?) printf "Invalid create() option: -%s\n" "$OPTARG" >&2;
-                exit       ;;
+            r)  create "$ttl" -r "$OPTARG"
+                ;;
+            \?) echo "Invalid create_parse() option: -$OPTARG" >&2;
+                exit 1
+                ;;
         esac
     done
     shift $(( OPTIND - 1 ))
 
-    if [ -n "$v_opt" ] && [ -z "$s_opt" ]; then
-        printf "Creating "
-        [ -n "$r_opt" ] && printf "recursive "
-        printf "snapshots...\n"
-    fi
-    ttl="$1"
-    shift
-    date=$(date '+%Y-%m-%dT%H:%M:%S%z' | sed 's/+/p/')
     for i in "$@"; do
-        skip="FAULTED\|OFFLINE\|REMOVED\|UNAVAIL"
-        if zpool status "$(echo "$i" | cut -f1 -d'/')" | \
-                grep -q "$skip"; then
-            warn "zap skipped creating a snapshot for $i because of pool state!"
-        else
-            [ -n "$v_opt" ] && printf "%s   " "${i}@ZAP_${date}--${ttl}"
-            if zfs snapshot "$r_opt" "${i}@ZAP_${date}--${ttl}"; then
-                [ -n "$v_opt" ] && printf "\n"
-            fi
-        fi
+        create "$ttl" "$i"
     done
 }
 
-destroy () {
-    [ -n "$v_opt" ] && printf "Destroying snapshots...\n"
-    now_ts=$(date '+%s')
-    zfs list -H -t snap -o name | while read -r i; do
-        skip="scrub in progress\|DEGRADED\|FAULTED\|OFFLINE\|REMOVED\|UNAVAIL"
-        if zpool status "$(echo "$i" | sed 's/[/@].*//')" | \
-                grep -q "$skip"; then
-            warn "zap skipped destroying $i because of pool state!"
+create () {
+    ttl="$1"
+    shift
+
+    r_opt=''
+    while getopts ":r" opt; do
+        case $opt in
+            r)  r_opt=1
+                ;;
+            \?) echo "Invalid create() option: -$OPTARG" >&2
+                exit 1
+                ;;
+        esac
+    done
+    shift $(( OPTIND - 1 ))
+
+    if ! pool_ok "${1%%/*}"; then
+        warn "zap DID NOT snapshot $i because of the pool state!"
+    else
+        if [ -n "$v_OPT" ]; then
+            printf "zfs snap "
+            [ -n "$r_opt" ] && printf "\-r "
+            echo "${1}@ZAP_${DATE}--${ttl}"
+        fi
+        if [ -n "$r_opt" ]; then
+            zfs snap -r "$1@ZAP_${DATE}--${ttl}"
         else
-            if echo "$i" | grep -q -e "$zptn"; then
+            zfs snap "$1@ZAP_${DATE}--${ttl}"
+        fi
+    fi
+}
+
+destroy () {
+    now_ts=$(date '+%s')
+
+    [ -n "$v_OPT" ] && printf "%s\nDestroying snapshots...\n" "$(date)"
+    zfs list -H -t snap -o name | while read -r i; do
+        if echo "$i" | grep -q -e "$ZPTN"; then
+            pool="${i%%/*}"
+            if ! pool_ok "$pool"; then
+                warn "zap DID NOT destroy $i because of the state of $pool!"
+            elif pool_scrub "$pool"; then
+                warn "zap DID NOT destroy $i because $pool is being scrubbed!"
+            else
                 create_time=$(echo "$i" | sed 's/^..*@ZAP_//;
 s/--[0-9]\{1,4\}[dwmy]$//;s/p/+/')
                 create_ts=$(ss_ts "$create_time")
-                ttls=$(ttl2s "$(echo "$i" | grep -o '[0-9]\{1,4\}[dwmy]$')")
+                ttls=$(ttl2s "$(echo "$i"|grep -o '[0-9]\{1,4\}[dwmy]$')")
                 if ! is_pint "$create_ts" || ! is_pint "$ttls"; then
-                    warn "Skipping $i. Could not determine its expiration time."
+                    warn "SNAPSHOT $i WAS NOT DESTROYED because its expiration \
+time could not be determined."
                 else
                     expire_ts=$((create_ts + ttls))
                     if [ "$now_ts" -gt "$expire_ts" ]; then
-                        [ -n "$v_opt" ] && printf "%s   " "$i"
-                        if zfs destroy "$i"; then
-                            [ -n "$v_opt" ] && printf "\n"
-                        fi
+                        [ -n "$v_OPT" ] && echo "zfs destroy $i"
+                        zfs destroy "$i"
                     fi
                 fi
             fi
@@ -196,54 +221,67 @@ s/--[0-9]\{1,4\}[dwmy]$//;s/p/+/')
     done
 }
 
-prop () {
-    if [ -n "$v_opt" ]; then
-        printf "Creating "
-        [ -n "$r_opt" ] && printf "recursive "
-        printf "snapshots...\n"
+pool_ok () {
+    skip="FAULTED\|OFFLINE\|REMOVED\|UNAVAIL"
+    if zpool status "$1" | grep -q "$skip"; then
+        return 1
     fi
+
+    return 0
+}
+
+pool_scrub () {
+    if zpool status "$1" | grep -q "scrub in progress"; then
+        return 0
+    fi
+
+    return 1
+}
+
+prop () {
+    [ -n "$v_OPT" ] && printf "%s\nCreating snapshots...\n" "$(date)"
     zfs list -Ho name -t volume,filesystem | while read -r f; do
         if [ "$(zfs get -H -o value zap:snap "$f")" = 'on' ]; then
-            create -s "$1" "$f"
+            create "$1" "$f"
         fi
     done
 }
 
 # ===============================================================================
 
-zptn='@ZAP_..*--[0-9]\{1,4\}[dwmy]'
-
-os=$(uname)
-case $os in
+OS=$(uname)
+case $OS in
     'Darwin'|'FreeBSD'|'Linux'|'SunOS')
     ;;
     *)
-        fatal "${0##*/} has not be tested on $os.
+        fatal "${0##*/} has not be tested on $OS.
        Feedback and patches are welcome."
         ;;
 esac
 
-while getopts ":dhrv" opt; do
-    case $opt in
-        d)  d_opt=true   ;;
+while getopts ":dhv" OPT; do
+    case $OPT in
+        d)  d_OPT=true   ;;
         h)  help         ;;
-        r)  r_opt="-r"   ;;
-        v)  v_opt=true   ;;
-        \?) printf "Invalid option: -%s\n" "$OPTARG" >&2;
+        v)  v_OPT=true   ;;
+        \?) printf "Invalid option: -%s\n\n" "$OPTARG" >&2;
             help         ;;
     esac
 done
 shift $(( OPTIND - 1 ))
-
-if [ -n "$d_opt" ] && [ -n "$r_opt" ]; then
+if [ -n "$d_OPT" ] && [ $# -gt 0 ]; then
     help
 fi
 
-if [ -n "$d_opt" ]; then
+DATE=$(date '+%Y-%m-%dT%H:%M:%S%z' | sed 's/+/p/')
+TTLPTN='^[0-9]\{1,4\}[dwmy]$'
+ZPTN='@ZAP_..*--[0-9]\{1,4\}[dwmy]'
+
+if [ -n "$d_OPT" ]; then
     destroy
-elif echo "$1" | grep -q -e "^[0-9]\{1,4\}[dwmy]$" && [ $# -gt 1 ]; then
-    create "$@"
-elif echo "$1" | grep -q -e "^[0-9]\{1,4\}[dwmy]$" && [ $# -eq 1 ]; then
+elif echo "$1" | grep -q -e "$TTLPTN" && [ $# -gt 1 ]; then
+    create_parse "$@"
+elif echo "$1" | grep -q -e "$TTLPTN" && [ $# -eq 1 ]; then
     prop "$1"
 else
     help
