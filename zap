@@ -54,11 +54,11 @@ NAME
    ${0##*/} -- maintain ZFS snapshots
 
 SYNOPSIS
-   ${0##*/} TTL [pool[/filesystem] ...]
-   ${0##*/} -d
+   ${0##*/} [-rv] TTL [pool[/filesystem] ...]
+   ${0##*/} -d [-v]
 
 DESCRIPTION
-   ${0##*/} TTL [pool[/filesystem] ...]
+   ${0##*/} [-rv] TTL [pool[/filesystem] ...]
 
    Create ZFS snapshots that will expire after TTL (time to live) time has
    elapsed.  TTL takes the form [0-9]{1,4}[dwmy], i.e., one to four digits
@@ -66,9 +66,14 @@ DESCRIPTION
    year).  If [pool[/filesystem] ...] is not supplied, snapshots will be created
    for filesystems with the property zap:snap set to "on".
 
-   ${0##*/} -d
+   -r  Snapshots will be created for all dependent datasets.
+   -v  Be verbose.
+
+   ${0##*/} -d [-v]
 
    Destroy expired snapshots.
+
+   -v  Be verbose.
 
 EXAMPLES
    Create snapshots that will last for 1 day, 3 weeks, 6 months, and 1 year.
@@ -130,21 +135,39 @@ warn () {
 # ===============================================================================
 
 create () {
+    while getopts ":s" opt; do
+        case $opt in
+            s)  s_opt=true ;;
+            \?) printf "Invalid create() option: -%s\n" "$OPTARG" >&2;
+                exit       ;;
+        esac
+    done
+    shift $(( OPTIND - 1 ))
+
+    if [ -n "$v_opt" ] && [ -z "$s_opt" ]; then
+        printf "Creating "
+        [ -n "$r_opt" ] && printf "recursive "
+        printf "snapshots...\n"
+    fi
     ttl="$1"
     shift
     date=$(date '+%Y-%m-%dT%H:%M:%S%z' | sed 's/+/p/')
     for i in "$@"; do
-        skip="scrub in progress\|FAULTED\|OFFLINE\|REMOVED\|UNAVAIL"
+        skip="FAULTED\|OFFLINE\|REMOVED\|UNAVAIL"
         if zpool status "$(echo "$i" | cut -f1 -d'/')" | \
                 grep -q "$skip"; then
             warn "zap skipped creating a snapshot for $i because of pool state!"
         else
-            zfs snapshot "${i}@ZAP_${date}--${ttl}"
+            [ -n "$v_opt" ] && printf "%s   " "${i}@ZAP_${date}--${ttl}"
+            if zfs snapshot "$r_opt" "${i}@ZAP_${date}--${ttl}"; then
+                [ -n "$v_opt" ] && printf "\n"
+            fi
         fi
     done
 }
 
 destroy () {
+    [ -n "$v_opt" ] && printf "Destroying snapshots...\n"
     now_ts=$(date '+%s')
     zfs list -H -t snap -o name | while read -r i; do
         skip="scrub in progress\|DEGRADED\|FAULTED\|OFFLINE\|REMOVED\|UNAVAIL"
@@ -161,7 +184,12 @@ s/--[0-9]\{1,4\}[dwmy]$//;s/p/+/')
                     warn "Skipping $i. Could not determine its expiration time."
                 else
                     expire_ts=$((create_ts + ttls))
-                    [ "$now_ts" -gt "$expire_ts" ] && zfs destroy "$i"
+                    if [ "$now_ts" -gt "$expire_ts" ]; then
+                        [ -n "$v_opt" ] && printf "%s   " "$i"
+                        if zfs destroy "$i"; then
+                            [ -n "$v_opt" ] && printf "\n"
+                        fi
+                    fi
                 fi
             fi
         fi
@@ -169,9 +197,14 @@ s/--[0-9]\{1,4\}[dwmy]$//;s/p/+/')
 }
 
 prop () {
+    if [ -n "$v_opt" ]; then
+        printf "Creating "
+        [ -n "$r_opt" ] && printf "recursive "
+        printf "snapshots...\n"
+    fi
     zfs list -Ho name -t volume,filesystem | while read -r f; do
         if [ "$(zfs get -H -o value zap:snap "$f")" = 'on' ]; then
-            create "$1" "$f"
+            create -s "$1" "$f"
         fi
     done
 }
@@ -190,12 +223,28 @@ case $os in
         ;;
 esac
 
-if echo "$1" | grep -q -e "^[0-9]\{1,4\}[dwmy]$" && [ $# -gt 1 ]; then
+while getopts ":dhrv" opt; do
+    case $opt in
+        d)  d_opt=true   ;;
+        h)  help         ;;
+        r)  r_opt="-r"   ;;
+        v)  v_opt=true   ;;
+        \?) printf "Invalid option: -%s\n" "$OPTARG" >&2;
+            help         ;;
+    esac
+done
+shift $(( OPTIND - 1 ))
+
+if [ -n "$d_opt" ] && [ -n "$r_opt" ]; then
+    help
+fi
+
+if [ -n "$d_opt" ]; then
+    destroy
+elif echo "$1" | grep -q -e "^[0-9]\{1,4\}[dwmy]$" && [ $# -gt 1 ]; then
     create "$@"
 elif echo "$1" | grep -q -e "^[0-9]\{1,4\}[dwmy]$" && [ $# -eq 1 ]; then
     prop "$1"
-elif [ "$1" = '-d' ]; then
-    destroy
 else
     help
 fi
