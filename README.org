@@ -13,14 +13,14 @@
    =$ zap [-v] TTL [[-r] pool[/filesystem] ...]=
 
    Create ZFS snapshots that will expire after TTL (time to live) time has
-   elapsed.  TTL takes the form [0-9]{1,4}[dwmy], i.e., one to four digits
+   elapsed.  TTL takes the form =[0-9]{1,4}[dwmy]=, i.e., one to four digits
    followed by a character to represent the time unit (day, week, month, or
-   year).  If [pool[/filesystem] ...] is not supplied, snapshots will be created
-   for filesystems with the property zap:snap set to "on".
+   year).  If =[[-r] pool[/filesystem] ...]= is not supplied, snapshots will be
+   created for filesystems with the property =zap:snap= set to =on=.
 
-   -v  Be verbose.
+   =-v=  Be verbose.
 
-   -r  Snapshots will be created for all dependent datasets.
+   =-r=  Snapshots will be created for all dependent datasets.
 
    =$ zap -d [-v]=
 
@@ -40,8 +40,8 @@
       $ zap -v 3w tank zroot/usr/home/nox -r zroot/var
 #+END_SRC
 
-   Create the same snapshots for filesystems with the zap:snap property set to
-   "on".
+   Create the same snapshots for filesystems with the =zap:snap= property set to
+   =on=.
 #+BEGIN_SRC sh
    $ zap 1d
    $ zap 3w
