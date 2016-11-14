@@ -19,6 +19,7 @@
    for filesystems with the property zap:snap set to "on".
 
    -v  Be verbose.
+
    -r  Snapshots will be created for all dependent datasets.
 
    =$ zap -d [-v]=
