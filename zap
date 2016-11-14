@@ -63,8 +63,8 @@ DESCRIPTION
    Create ZFS snapshots that will expire after TTL (time to live) time has
    elapsed.  TTL takes the form [0-9]{1,4}[dwmy], i.e., one to four digits
    followed by a character to represent the time unit (day, week, month, or
-   year).  If [pool[/filesystem] ...] is not supplied, snapshots will be created
-   for filesystems with the property zap:snap set to "on".
+   year).  If [[-r] pool[/filesystem] ...] is not supplied, snapshots will be
+   created for filesystems with the property zap:snap set to "on".
 
    -v  Be verbose.
    -r  Snapshots will be created for all dependent datasets.
