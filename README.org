@@ -10,7 +10,7 @@
     - written in POSIX sh
 
 ** Synopsis
-   =$ zap TTL [pool[/filesystem] ...]=
+   =$ zap [-v] TTL [[-r] pool[/filesystem] ...]=
 
    Create ZFS snapshots that will expire after TTL (time to live) time has
    elapsed.  TTL takes the form [0-9]{1,4}[dwmy], i.e., one to four digits
@@ -18,7 +18,10 @@
    year).  If [pool[/filesystem] ...] is not supplied, snapshots will be created
    for filesystems with the property zap:snap set to "on".
 
-   =$ zap -d=
+   -v  Be verbose.
+   -r  Snapshots will be created for all dependent datasets.
+
+   =$ zap -d [-v]=
 
    Destroy expired snapshots.
 
@@ -26,9 +29,14 @@
    Create snapshots that will last for 1 day, 3 weeks, 6 months, and 1 year.
 #+BEGIN_SRC sh
    $ zap 1d zroot/ROOT/default
-   $ zap 3w tank/backup zroot/usr/home/nox
+   $ zap 3w tank zroot/usr/home/nox zroot/var
    $ zap 6m zroot/usr/home/jrm zroot/usr/home/mem
    $ zap 1y tank/backup
+#+END_SRC
+
+   Create snapshots (recursively for zroot/var).  Be verbose.
+#+BEGIN_SRC sh
+      $ zap -v 3w tank zroot/usr/home/nox -r zroot/var
 #+END_SRC
 
    Create the same snapshots for filesystems with the zap:snap property set to

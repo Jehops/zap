@@ -78,11 +78,11 @@ DESCRIPTION
 EXAMPLES
    Create snapshots that will last for 1 day, 3 weeks, 6 months, and 1 year.
       $ ${0##*/} 1d zroot/ROOT/default
-      $ ${0##*/} 3w tank zroot/usr/home/nox -r zroot/var
+      $ ${0##*/} 3w tank zroot/usr/home/nox zroot/var
       $ ${0##*/} 6m zroot/usr/home/jrm zroot/usr/home/mem
       $ ${0##*/} 1y tank/backup
 
-   Create the snapshots recursively for zroot/var.  Be verbose.
+   Create snapshots (recursively for zroot/var).  Be verbose.
       $ ${0##*/} -v 3w tank zroot/usr/home/nox -r zroot/var
 
    Create the same snapshots for filesystems with the zap:snap property set to
