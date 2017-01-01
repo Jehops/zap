@@ -179,7 +179,7 @@ create () {
     shift $(( OPTIND - 1 ))
 
     if ! pool_ok "${1%%/*}"; then
-        warn "zap DID NOT snapshot $i because of the pool state!"
+        warn "DID NOT snapshot $i because of the pool state!"
     else
         if [ -n "$v_OPT" ]; then
             printf "zfs snap "
@@ -202,9 +202,9 @@ destroy () {
         if echo "$i" | grep -q -e "$ZPTN"; then
             pool="${i%%/*}"
             if ! pool_ok "$pool"; then
-                warn "zap DID NOT destroy $i because of the state of $pool!"
+                warn "DID NOT destroy $i because of the state of $pool!"
             elif pool_scrub "$pool"; then
-                warn "zap DID NOT destroy $i because $pool is being scrubbed!"
+                warn "DID NOT destroy $i because $pool is being scrubbed!"
             else
                 create_ts=$(ss_ts "$(ss_st "$i")")
                 ttls=$(ttl2s "$(echo "$i"|grep -o '[0-9]\{1,4\}[dwmy]$')")
@@ -281,9 +281,9 @@ ZPTN='@ZAP_..*--[0-9]\{1,4\}[dwmy]'
 
 if [ -n "$d_OPT" ]; then
     destroy
-elif echo "$1" | grep -q -e "$TTLPTN" && [ $# -gt 1 ]; then
+elif echo "$1" | grep -q "$TTLPTN" && [ $# -gt 1 ]; then
     create_parse "$@"
-elif echo "$1" | grep -q -e "$TTLPTN" && [ $# -eq 1 ]; then
+elif echo "$1" | grep -q "$TTLPTN" && [ $# -eq 1 ]; then
     prop "$1"
 else
     help
