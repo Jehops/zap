@@ -184,12 +184,12 @@ create () {
         if [ -n "$v_OPT" ]; then
             printf "zfs snap "
             [ -n "$r_opt" ] && printf "\-r "
-            echo "${1}@ZAP_${DATE}--${ttl}"
+            echo "${1}@ZAP_${HN}_${DATE}--${ttl}"
         fi
         if [ -n "$r_opt" ]; then
-            zfs snap -r "$1@ZAP_${DATE}--${ttl}"
+            zfs snap -r "$1@ZAP_${HN}_${DATE}--${ttl}"
         else
-            zfs snap "$1@ZAP_${DATE}--${ttl}"
+            zfs snap "$1@ZAP_${HN}_${DATE}--${ttl}"
         fi
     fi
 }
@@ -249,7 +249,62 @@ prop () {
     done
 }
 
-# ===============================================================================
+send () {
+    [ -n "$v_OPT" ] && printf "%s\nSending snapshots...\n" "$(date)"
+    for f in $(zfs list -H -o name -t volume,filesystem); do
+        if [ "$(zfs get -H -o value zap:snap "$f")" = 'on' ]; then
+            rdest=$(zfs get -H -o value zap:rep "$f")
+            if echo "$rdest" | grep -q "$REPPTN"; then
+                sshto=$(echo "$rdest" | cut -d':' -f1)
+                rloc=$(echo "$rdest" | cut -d':' -f2)
+                lsnap=$(zfs list -rd1 -tsnap -o name,zap:snap -s creation "$f" \
+                            | grep 'on$' | tail -1 | cut -w -f1)
+                l_ts=$(ss_ts "$(ss_st "$lsnap")")
+                fs=$(echo "$f" | sed 's|[a-z]*/||') # TODO: validate
+                # get the youngest remote snapshot for this dataset
+                rsnap=$(ssh "$sshto" "zfs list -rd1 -tsnap -o name,zap:snap -s \
+creation $rloc/$fs | grep 'on$' | tail -1 | cut -w -f1 | sed 's/^.*@/@/'")
+                if [ -z "$rsnap" ]; then
+                    [ -n "$v_OPT" ] && \
+                        echo "No remote snapshots found. Sending full stream."
+                    if zfs send "$lsnap" | \
+                            ssh "$sshto" "zfs receive -dFv $rloc"; then
+                        zfs bookmark "$lsnap" \
+                            "$(echo "$lsnap" | sed 's/@/#/')"
+                    else
+                        warn "Failed to replicate $lsnap to $sshto:$rloc"
+                    fi
+                else # send incremental stream
+                    r_ts=$(ss_ts "$(ss_st "$rsnap")")
+                    [ -n "$v_OPT" ] && echo "$lsnap > $sshto:$rloc$rsnap"
+                    if [ "$l_ts" -gt "$r_ts" ]; then
+                        ## ensure there is a bookmark for the remote snapshot
+                        if bm=$(zfs list -rd1 -t bookmark -H -o name "$f" | \
+                                    grep "${rsnap#@}"); then
+                            if zfs send -i "$bm" "$lsnap" | \
+                                    ssh "$sshto" "zfs receive -dv $rloc"; then
+                                if zfs bookmark "$lsnap" \
+                                       "$(echo "$lsnap" | sed 's/@/#/')"; then
+                                    [ -n "$v_OPT" ] && \
+                                        echo "Created bookmark for $rsnap"
+                                else
+                                    warn "Failed to create bookmark for $lsnap"
+                                fi
+                            else
+                                warn "Failed to replicate $lsnap > $sshto:$rloc"
+                            fi
+                        else
+                            warn "Failed to find local bookmark for remote \
+snapshot, $rsnap."
+                        fi
+                    fi
+                fi
+            fi
+        fi
+    done
+}
+
+# ==============================================================================
 
 OS=$(uname)
 case $OS in
@@ -261,10 +316,11 @@ case $OS in
         ;;
 esac
 
-while getopts ":dhv" OPT; do
+while getopts ":dhsv" OPT; do
     case $OPT in
         d)  d_OPT=true   ;;
         h)  help         ;;
+        s)  s_OPT=true   ;;
         v)  v_OPT=true   ;;
         \?) printf "Invalid option: -%s\n\n" "$OPTARG" >&2;
             help         ;;
@@ -276,8 +332,17 @@ if [ -n "$d_OPT" ] && [ $# -gt 0 ]; then
 fi
 
 DATE=$(date '+%Y-%m-%dT%H:%M:%S%z' | sed 's/+/p/')
+HN=$(hostname -s)
+REPPTN='^\([[:alpha:]_][a-z0-9_-]\{0,31\}@\)\?[[:alnum:].-]\+:[[:alnum:]/-]\+' ## TODO: proper validation
 TTLPTN='^[0-9]\{1,4\}[dwmy]$'
-ZPTN='@ZAP_..*--[0-9]\{1,4\}[dwmy]'
+ZPTN="@ZAP_${HN}_..*--[0-9]\{1,4\}[dwmy]"
+
+# TODO: current option handling has issues
+
+# TODO: Update the arguments and flags so they work like zfs:
+# zap send [-...]
+# zap snap [-...]
+# zap destroy [-...]
 
 if [ -n "$d_OPT" ]; then
     destroy
@@ -285,6 +350,8 @@ elif echo "$1" | grep -q "$TTLPTN" && [ $# -gt 1 ]; then
     create_parse "$@"
 elif echo "$1" | grep -q "$TTLPTN" && [ $# -eq 1 ]; then
     prop "$1"
+elif [ -n "$s_OPT" ]; then
+    send
 else
     help
 fi
