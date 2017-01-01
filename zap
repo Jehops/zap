@@ -115,6 +115,10 @@ is_pint () {
     return 0
 }
 
+ss_st () {
+    echo "$1" | sed "s/^.*@ZAP_${HN}_//;s/--[0-9]\{1,4\}[dwmy]$//;s/p/+/"
+}
+
 ss_ts () {
     case $OS in
         'Darwin'|'FreeBSD')
@@ -202,9 +206,7 @@ destroy () {
             elif pool_scrub "$pool"; then
                 warn "zap DID NOT destroy $i because $pool is being scrubbed!"
             else
-                create_time=$(echo "$i" | sed 's/^..*@ZAP_//;
-s/--[0-9]\{1,4\}[dwmy]$//;s/p/+/')
-                create_ts=$(ss_ts "$create_time")
+                create_ts=$(ss_ts "$(ss_st "$i")")
                 ttls=$(ttl2s "$(echo "$i"|grep -o '[0-9]\{1,4\}[dwmy]$')")
                 if ! is_pint "$create_ts" || ! is_pint "$ttls"; then
                     warn "SNAPSHOT $i WAS NOT DESTROYED because its expiration \
