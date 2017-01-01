@@ -198,8 +198,8 @@ destroy () {
     now_ts=$(date '+%s')
 
     [ -n "$v_OPT" ] && printf "%s\nDestroying snapshots...\n" "$(date)"
-    zfs list -H -t snap -o name | while read -r i; do
-        if echo "$i" | grep -q -e "$ZPTN"; then
+    for i in $(zfs list -H -t snap -o name); do
+        if echo "$i" | grep -q "$ZPTN"; then
             pool="${i%%/*}"
             if ! pool_ok "$pool"; then
                 warn "DID NOT destroy $i because of the state of $pool!"
