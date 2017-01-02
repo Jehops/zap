@@ -271,7 +271,7 @@ send () {
                 lsnap=$(zfs list -rd1 -tsnap -o name,zap:snap -s creation "$f" \
                             | grep 'on$' | tail -1 | cut -w -f1)
                 l_ts=$(ss_ts "$(ss_st "$lsnap")")
-                fs=$(echo "$f" | sed 's|[a-z]*/||') # TODO: validate
+                fs=${f#*/}
                 # get the youngest remote snapshot for this dataset
                 rsnap=$(ssh "$sshto" "zfs list -rd1 -tsnap -o name,zap:snap -s \
 creation $rloc/$fs | grep 'on$' | tail -1 | cut -w -f1 | sed 's/^.*@/@/'")
