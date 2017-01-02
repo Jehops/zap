@@ -135,6 +135,17 @@ ttl2s () {
     echo "$1" | sed 's/d/*86400/;s/w/*604800/;s/m/*2592000/;s/y/*31536000/' | bc
 }
 
+val_rdest () {
+    un=$(echo "$1" | cut -d'@' -f1) # extract username
+    rest=$(echo "$1" | cut -d'@' -f2) # everything but username
+    host=$(echo "$rest" | cut -d":" -f1) # host or ip
+    ds=$(echo "$rest" | cut -d":" -f2) # dataset
+
+    ([ -z "$un" ] || echo "$un" | grep -q "$UNPTN") && \
+        echo "$host" | grep -q "$HOSTPTN\|$IPPTN" && \
+        echo "$ds" | grep -q '[^\0]\+'
+}
+
 warn () {
     echo "WARN: $*" > /dev/stderr
 }
@@ -254,7 +265,7 @@ send () {
     for f in $(zfs list -H -o name -t volume,filesystem); do
         if [ "$(zfs get -H -o value zap:snap "$f")" = 'on' ]; then
             rdest=$(zfs get -H -o value zap:rep "$f")
-            if echo "$rdest" | grep -q "$REPPTN"; then
+            if val_rdest "$rdest"; then
                 sshto=$(echo "$rdest" | cut -d':' -f1)
                 rloc=$(echo "$rdest" | cut -d':' -f2)
                 lsnap=$(zfs list -rd1 -tsnap -o name,zap:snap -s creation "$f" \
@@ -333,8 +344,10 @@ fi
 
 DATE=$(date '+%Y-%m-%dT%H:%M:%S%z' | sed 's/+/p/')
 HN=$(hostname -s)
-REPPTN='^\([[:alpha:]_][a-z0-9_-]\{0,31\}@\)\?[[:alnum:].-]\+:[[:alnum:]/-]\+' ## TODO: proper validation
+HOSTPTN="^\(\([:alnum:]]\|[[:alnum:]][[:alnum:]\-]*[[:alnum:]]\)\.\)*\([[:alnum:]]\|[[:alnum:]][[:alnum:]\-]*[[:alnum:]]\)$"
+IPPTN="^\(\([0-9]\|[1-9][0-9]\|1[0-9]\{2\}\|2[0-4][0-9]\|25[0-5]\)\.\)\{3\}\([0-9]\|[1-9][0-9]\|1[0-9]\{2\}\|2[0-4][0-9]\|25[0-5]\)$"
 TTLPTN='^[0-9]\{1,4\}[dwmy]$'
+UNPTN="^[[:alpha:]_][[:alnum:]_-]\{0,31\}$"
 ZPTN="@ZAP_${HN}_..*--[0-9]\{1,4\}[dwmy]"
 
 # TODO: current option handling has issues
