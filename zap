@@ -25,11 +25,9 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 # ==============================================================================
 
-# zap - Maintain ZFS snapshots with cron [1]
+# zap - Maintain and replicate rolling ZFS snapshots [1].
 #
-# Run zap without arguments or visit the GitHub page for an overview.
-#
-# https://github.com/Jehops/zap
+# Run zap without arguments or visit github.com/Jehops/zap for an overview.
 #
 # Key features:
 #
@@ -54,37 +52,41 @@ NAME
    ${0##*/} -- maintain and replicate ZFS snapshots
 
 SYNOPSIS
-   ${0##*/} snap|snapshot [-v] TTL [-r dataset ...] [dataset ...]
-   ${0##*/} rep|replicate [-v] [local_dataset remote_destination ...]
-   ${0##*/} destroy [-v]
+   ${0##*/} snap|snapshot [-v] TTL [-r dataset]... [dataset]...
+   ${0##*/} rep|replicate [-v] [local_dataset remote_destination]...
+   ${0##*/} destroy [-v] [host[,host]...]
 
 DESCRIPTION
-   ${0##*/} snap|snapshot [-v] TTL [-r dataset ...] [dataset ...]
+   ${0##*/} snap|snapshot [-v] TTL [-r dataset]... [dataset]...
 
    Create ZFS snapshots that will expire after TTL (time to live) time has
    elapsed.  Expired means they will be destroyed by ${0##*/} destroy.  TTL
    takes the form [0-9]{1,4}[dwmy], i.e., one to four digits followed by a
    character to represent the time unit (day, week, month, or year).  If neither
-   [-r dataset ...] nor [dataset ...] is supplied, snapshots will be created for
-   datasets with the property zap:snap set to "on".
+   [-r dataset]... nor [dataset]... is supplied, snapshots will be created for
+   datasets with the property zap:snap set to 'on'.
 
    -v  Be verbose
    -r  Recursively create snapshots of all descendents
 
-   ${0##*/} rep|replicate [-v] [local_dataset remote_destination ...]
+   ${0##*/} rep|replicate [-v] [local_dataset remote_destination]...
 
-   Replicate datasets via ssh to the remote location set in the zap:rep user
-   property.  The format of zap:rep is [user@]hostname:remote_location.
+   Remotly replicate datasets via ssh.  Remote destinations are specified in
+   zap:rep user properties or as arguments.  Remote destinations are specificed
+   using the format [user@]hostname:dataset.
+
    TODO: Describe setting up permissions and possible changes on the remote
    side.
-   TODO: More details described at http://ftfl.ca/blog/beta/2016-12-27-zfs-replication.html
+   TODO: More details described at
+   http://ftfl.ca/blog/beta/2016-12-27-zfs-replication.html
 
    -v  Be verbose.
 
-   ${0##*/} destroy [-v]
+   ${0##*/} destroy [-v] [host[,host2]...]
 
-   Destroy expired snapshots.
-   TODO: Allow users to specify a host to only destroy snapshots for that host.
+   Destroy expired snapshots.  If a comma separated list of hosts are specified,
+   then only delete snapshots originating from those hosts.  Hosts are specified
+   without any domain information, i.e., as returned by hostname -s.
 
    -v  Be verbose.
 
@@ -99,14 +101,26 @@ EXAMPLES
    3 weeks.  Be verbose.
       $ ${0##*/} snap 3w -v -r tank -r zroot/var zroot/usr/home/nox
 
-   Create snapshots for datasets with the zap:snap property set to "on".
+   Create snapshots for datasets with the zap:snap property set to 'on'.
       $ ${0##*/} snap 1d
       $ ${0##*/} snap 3w
       $ ${0##*/} snap 6m
       $ ${0##*/} snap 1y
 
+   Replicate datasets with the zap:rep user property set to a remote
+   destination.  Be verbose.
+      $ ${0##*/} rep -v
+
+   Replicate datasets from host phe to host bravo.
+      $ ${0##*/} rep zroot/ROOT/defalut jrm@bravo:rback/phe \
+                     zroot/usr/home/jrm jrm@bravo:rback/phe
+
    Destroy expired snapshots.
       $ ${0##*/} destroy
+
+   Destroy expired snapshots that originated from either the host awarnach or
+   the host gly.  Be verbose.
+      $ ${0##*/} destroy -v awarnach,gly
 
 AUTHORS AND CONTRIBUTORS
 Joseph Mingrone <jrm@ftfl.ca>
@@ -190,6 +204,12 @@ destroy () {
     done
     shift $(( OPTIND - 1 ))
 
+    if [ -n "$*" ]; then
+        # hostname was specified; only delete snapshots for that host
+        hl=$(echo "$*" | sed 's/[[:space:]]//g;s/,/\\|/g')
+        zptn="@ZAP_\(${hl}\)_..*--[0-9]\{1,4\}[dwmy]"
+    fi
+
     now_ts=$(date '+%s')
 
     [ -n "$v_opt" ] && printf "%s\nDestroying snapshots...\n" "$(date)"
@@ -218,7 +238,7 @@ time could not be determined."
     done
 }
 
-rep () {
+rep_parse () {
     while getopts ":v" opt; do
         case $opt in
             v)  v_opt=1 ;;
@@ -228,55 +248,93 @@ rep () {
     shift $(( OPTIND - 1 ))
 
     [ -n "$v_opt" ] && printf "%s\nSending snapshots...\n" "$(date)"
-    for f in $(zfs list -H -o name -t volume,filesystem); do
-        rdest=$(zfs get -H -o value zap:rep "$f")
-        if val_rdest "$rdest"; then
-            sshto=$(echo "$rdest" | cut -d':' -f1)
-            rloc=$(echo "$rdest" | cut -d':' -f2)
-            lsnap=$(zfs list -rd1 -tsnap -o name,zap:snap -s creation "$f" \
-                        | grep 'on$' | tail -1 | cut -w -f1)
-            l_ts=$(ss_ts "$(ss_st "$lsnap")")
-            fs=${f#*/}
-            # get the youngest remote snapshot for this dataset
-            rsnap=$(ssh "$sshto" "zfs list -rd1 -tsnap -o name,zap:snap -s \
-creation $rloc/$fs | grep 'on$' | tail -1 | cut -w -f1 | sed 's/^.*@/@/'")
-            if [ -z "$rsnap" ]; then
-                [ -n "$v_opt" ] && \
-                    echo "No remote snapshots found. Sending full stream."
-                if zfs send "$lsnap" | \
-                        ssh "$sshto" "zfs receive -dFv $rloc"; then
-                    zfs bookmark "$lsnap" \
-                        "$(echo "$lsnap" | sed 's/@/#/')"
+    if [ -z "$*" ]; then # use zap:rep property to send
+        for f in $(zfs list -H -o name -t volume,filesystem); do
+            rdest=$(zfs get -H -o value zap:rep "$f")
+            if val_rdest "$rdest"; then
+                if [ -n "$v_opt" ]; then
+                    rep -v "$f" "$rdest"
                 else
-                    warn "Failed to replicate $lsnap to $sshto:$rloc"
+                    rep "$f" "$rdest"
                 fi
-            else # send incremental stream
-                r_ts=$(ss_ts "$(ss_st "$rsnap")")
-                [ -n "$v_opt" ] && echo "$lsnap > $sshto:$rloc$rsnap"
-                if [ "$l_ts" -gt "$r_ts" ]; then
-                    ## ensure there is a bookmark for the remote snapshot
-                    if bm=$(zfs list -rd1 -t bookmark -H -o name "$f" | \
-                                grep "${rsnap#@}"); then
-                        if zfs send -i "$bm" "$lsnap" | \
-                                ssh "$sshto" "zfs receive -dv $rloc"; then
-                            if zfs bookmark "$lsnap" \
-                                   "$(echo "$lsnap" | sed 's/@/#/')"; then
-                                [ -n "$v_opt" ] && \
-                                    echo "Created bookmark for $rsnap"
-                            else
-                                warn "Failed to create bookmark for $lsnap"
-                            fi
-                        else
-                            warn "Failed to replicate $lsnap > $sshto:$rloc"
-                        fi
-                    else
-                        warn "Failed to find bookmark for remote \
-snapshot, $rsnap."
-                    fi
+            elif [ "$rdest" != '-' ]; then
+                warn "Invalid value in zap:rep user property: $rdest."
+                warn "Failed to replicate $f."
+            fi
+        done
+    else
+        until [ -z "$1" ] && [ -z "$2" ]; do
+            if ! zfs list -H -o name -t volume,filesystem "$1" \
+                 > /dev/null 2>&1; then
+                warn "Dataset $1 does not exist."
+                warn "Failed to replicate $1."
+            elif ! val_rdest "$2"; then
+                warn "Invalid remote replication location: $2."
+                warn "Failed to replicate $1."
+            else
+                if [ -n "$v_opt" ]; then
+                    rep -v "$1" "$2"
+                else
+                    rep "$1" "$2"
                 fi
             fi
-        fi
+            shift 2
+        done
+    fi
+}
+
+rep () {
+    while getopts ":v" opt; do
+        case $opt in
+            v)  v_opt2=1 ;;
+            \?) fatal "Invalid option: -$OPTARG" ;;
+        esac
     done
+    shift $(( OPTIND - 1 ))
+
+    sshto=$(echo "$2" | cut -d':' -f1)
+    rloc=$(echo "$2" | cut -d':' -f2)
+    lsnap=$(zfs list -rd1 -tsnap -o name -s creation "$1" \
+                | grep "@ZAP_${hn}_" | tail -1 | cut -w -f1)
+    l_ts=$(ss_ts "$(ss_st "$lsnap")")
+    fs=${1#*/}
+    # get the youngest remote snapshot for this dataset
+    rsnap=$(ssh "$sshto" "zfs list -rd1 -tsnap -o name -s creation $rloc/$fs |\
+grep @ZAP_${hn}_ | tail -1 | cut -w -f1 | sed 's/^.*@/@/'")
+    if [ -z "$rsnap" ]; then
+        [ -n "$v_opt2" ] && \
+            echo "No remote snapshots found. Sending full stream."
+        if zfs send "$lsnap" | \
+                ssh "$sshto" "zfs recv -dFv $rloc"; then
+            zfs bookmark "$lsnap" \
+                "$(echo "$lsnap" | sed 's/@/#/')"
+        else
+            warn "Failed to replicate $lsnap to $sshto:$rloc"
+        fi
+    else # send incremental stream
+        r_ts=$(ss_ts "$(ss_st "$rsnap")")
+        [ -n "$v_opt2" ] && echo "$lsnap > $sshto:$rloc$rsnap"
+        if [ "$l_ts" -gt "$r_ts" ]; then
+            ## ensure there is a bookmark for the remote snapshot
+            if bm=$(zfs list -rd1 -t bookmark -H -o name "$1" | \
+                        grep "${rsnap#@}"); then
+                if zfs send -i "$bm" "$lsnap" | \
+                        ssh "$sshto" "zfs recv -dv $rloc"; then
+                    if zfs bookmark "$lsnap" \
+                           "$(echo "$lsnap" | sed 's/@/#/')"; then
+                        [ -n "$v_opt2" ] && \
+                            echo "Created bookmark for $rsnap"
+                    else
+                        warn "Failed to create bookmark for $lsnap"
+                    fi
+                else
+                    warn "Failed to replicate $lsnap > $sshto:$rloc"
+                fi
+            else
+                warn "Failed to find bookmark for remote snapshot, $rsnap."
+            fi
+        fi
+    fi
 }
 
 snap_parse () {
@@ -375,7 +433,7 @@ zptn="@ZAP_${hn}_..*--[0-9]\{1,4\}[dwmy]"
 
 case $1 in
     snap|snapshot) shift; snap_parse "$@" ;;
-    rep|replicate) shift; rep        "$@" ;;
+    rep|replicate) shift; rep_parse  "$@" ;;
     destroy)       shift; destroy    "$@" ;;
     *)             help                   ;;
 esac
