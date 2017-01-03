@@ -292,6 +292,7 @@ rep () {
     done
     shift $(( OPTIND - 1 ))
 
+    [ -z "$v_opt2" ] && rd="> /dev/null"
     sshto=$(echo "$2" | cut -d':' -f1)
     rloc=$(echo "$2" | cut -d':' -f2)
     lsnap=$(zfs list -rd1 -tsnap -o name -s creation "$1" \
@@ -305,7 +306,7 @@ grep @ZAP_${hn}_ | tail -1 | cut -w -f1 | sed 's/^.*@/@/'")
         [ -n "$v_opt2" ] && \
             echo "No remote snapshots found. Sending full stream."
         if zfs send "$lsnap" | \
-                ssh "$sshto" "zfs recv -dFv $rloc"; then
+                ssh "$sshto" "zfs recv -dFv $rloc" "$rd"; then
             zfs bookmark "$lsnap" \
                 "$(echo "$lsnap" | sed 's/@/#/')"
         else
@@ -319,7 +320,7 @@ grep @ZAP_${hn}_ | tail -1 | cut -w -f1 | sed 's/^.*@/@/'")
             if bm=$(zfs list -rd1 -t bookmark -H -o name "$1" | \
                         grep "${rsnap#@}"); then
                 if zfs send -i "$bm" "$lsnap" | \
-                        ssh "$sshto" "zfs recv -dv $rloc"; then
+                        ssh "$sshto" "zfs recv -dv $rloc" "$rd"; then
                     if zfs bookmark "$lsnap" \
                            "$(echo "$lsnap" | sed 's/@/#/')"; then
                         [ -n "$v_opt2" ] && \
