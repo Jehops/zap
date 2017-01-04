@@ -52,12 +52,12 @@ NAME
    ${0##*/} -- maintain and replicate ZFS snapshots
 
 SYNOPSIS
-   ${0##*/} snap|snapshot [-dSv] TTL [-r dataset]... [dataset]...
-   ${0##*/} rep|replicate [-dSv] [[-r dataset]... [dataset]... remote_dest]
-   ${0##*/} destroy [-dsv] [host[,host]...]
+   ${0##*/} snap|snapshot [-dLSv] TTL [-r dataset]... [dataset]...
+   ${0##*/} rep|replicate [-dLSv] [[-r dataset]... [dataset]... remote_dest]
+   ${0##*/} destroy [-dlsv] [host[,host]...]
 
 DESCRIPTION
-   ${0##*/} snap|snapshot [-dSv] TTL [-r dataset]... [dataset]...
+   ${0##*/} snap|snapshot [-dLSv] TTL [-r dataset]... [dataset]...
 
    Create ZFS snapshots that will expire after TTL (time to live) time has
    elapsed.  Expired means they will be destroyed by ${0##*/} destroy.  TTL
@@ -67,23 +67,25 @@ DESCRIPTION
    datasets with the property zap:snap set to 'on'.  By default, if the pool is
    in any one of the states DEGRADED, FAULTED, OFFLINE, REMOVED, or UNAVAIL,
    then no snapshots will be created.  Snapshots are still created, by default,
-   when the pool is being scrubbed.
+   when the pool has a resilver in progress or is being scrubbed.
 
    -d  Create snapshots when the pool is in a DEGRADED state.
+   -L  Do not create the snapshots if the pool has a resilver in progress.
    -S  Do not create the snapshots if the pool is being scrubbed.
    -v  Be verbose.
    -r  Recursively create snapshots of all descendents.
 
-   ${0##*/} rep|replicate [-dSv] [local_dataset remote_destination]...
+   ${0##*/} rep|replicate [-dLSv] [local_dataset remote_destination]...
 
    Remotely replicate datasets via ssh.  Remote destinations are specified in
    zap:rep user properties or as arguments using the format
    [user@]hostname:dataset.  By default, if the pool is in any one of the states
    DEGRADED, FAULTED, OFFLINE, REMOVED, or UNAVAIL, then replication will be
-   skipped.  Replication still occurs, by default, when the pool is being
-   scrubbed.
+   skipped.  Replication still occurs, by default, when the pool has a resilver
+   in progress or is being scrubbed.
 
    -d  Replicate when the pool is in a DEGRADED state.
+   -L  Do not replicate if the pool has a resilver in progress.
    -S  Do not replicate if the pool is being scrubbed.
    -v  Be verbose.
 
@@ -93,10 +95,11 @@ DESCRIPTION
    then only delete snapshots originating from those hosts.  Hosts are specified
    without any domain information, i.e., as returned by hostname -s.  By
    default, if the pool is in any one of the states DEGRADED, FAULTED, OFFLINE,
-   REMOVED, or UNAVAIL, or if the pool is being scrubbed, then the destroy will
-   be skipped.
+   REMOVED, or UNAVAIL, has a resilver in progress or is being scrubbed, then
+   the destroy will be skipped.
 
    -d  Destroy when the pool is in a DEGRADED state.
+   -l  Destroy if the pool has a resilver in progress.
    -s  Destroy if the pool is being scrubbed.
    -v  Be verbose.
 
@@ -186,6 +189,14 @@ pool_scrub () {
     return 1
 }
 
+pool_resilver () {
+    if zpool status "$1" | grep -q "scan: resilver in progress"; then
+        return 0
+    fi
+
+    return 1
+}
+
 ss_st () {
     echo "$1" | sed "s/^.*@ZAP_${hn}_//;s/--[0-9]\{1,4\}[dwmy]$//;s/p/+/"
 }
@@ -223,9 +234,10 @@ warn () {
 
 # ==============================================================================
 destroy () {
-    while getopts ":dsv" opt; do
+    while getopts ":dlsv" opt; do
         case $opt in
             d)  d_opt='-d' ;;
+            l)  l_opt=1    ;;
             s)  s_opt=1    ;;
             v)  v_opt=1    ;;
             \?) fatal "Invalid destroy() option -$OPTARG" ;;
@@ -250,6 +262,9 @@ destroy () {
                 warn "Did not destroy $i because of pool state."
             elif [ -z "$s_opt" ] && pool_scrub "$pool"; then
                 warn "Did not destroy $i because $pool is being scrubbed."
+            elif [ -z "$l_opt" ] && pool_resilver "$pool"; then
+                warn "Did not destroy $i because $pool has a resilver in \
+progress."
             else
                 snap_ts=$(ss_ts "$(ss_st "$i")")
                 ttls=$(ttl2s "$(echo "$i"|grep -o '[0-9]\{1,4\}[dwmy]$')")
@@ -270,9 +285,10 @@ time could not be determined."
 
 # rep_parse [-dSv] [[-r dataset]... [dataset]... remote_dest]
 rep_parse () {
-    while getopts ":drSv" opt; do
+    while getopts ":dLrSv" opt; do
         case $opt in
             d)  d_opt='-d'        ;;
+            S)  L_opt=1           ;;
             r)  r_opt=1           ;;
             S)  S_opt=1           ;;
             v)  v_opt=1           ;;
@@ -327,6 +343,9 @@ rep () {
     elif [ -n "$S_opt" ] && pool_scrub "${1%%/*}"; then
         warn "DID NOT replicate $1 because '-S' was supplied and the pool is \
 being scrubbed!"
+    elif [ -n "$L_opt" ] && pool_scrub "${1%%/*}"; then
+        warn "DID NOT replicate $1 because '-L' was supplied and the pool has \
+a resilver in progress!"
     elif ! zfs list -H -o name -t volume,filesystem "$1" \
            > /dev/null 2>&1; then
         warn "Dataset $1 does not exist."
@@ -395,9 +414,10 @@ $rloc/$fs 2>/dev/null | grep @ZAP_${hn}_ | tail -1 | sed 's/^.*@/@/'")
 
 # snap_parse [-dSv] TTL [-r dataset]... [dataset]...
 snap_parse () {
-    while getopts ":dSv" opt; do
+    while getopts ":dLSv" opt; do
         case $opt in
             d)  d_opt='-d'        ;;
+            L)  L_opt=1           ;;
             S)  S_opt=1           ;;
             v)  v_opt=1           ;;
             \?) fatal "Invalid snap_parse() option -$OPTARG." ;;
@@ -453,6 +473,9 @@ snap () {
     elif [ -n "$S_opt" ] && pool_scrub "${1%%/*}"; then
         warn "DID NOT snapshot $1 because '-S' was supplied and the pool is \
 being scrubbed!"
+    elif [ -n "$L_opt" ] && pool_resilver "${1%%/*}"; then
+        warn "DID NOT snapshot $1 because '-L' was supplied and the pool has \
+a resilver in progress!"
     else
         if [ -n "$v_opt" ]; then
             printf "zfs snap "
