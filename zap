@@ -191,10 +191,10 @@ ttl2s () {
 }
 
 val_rdest () {
-    un=$(echo "$1" | cut -d'@' -f1) # extract username
-    rest=$(echo "$1" | cut -d'@' -f2) # everything but username
-    host=$(echo "$rest" | cut -d":" -f1) # host or ip
-    ds=$(echo "$rest" | cut -d":" -f2) # dataset
+    un=$(echo "$1"      | cut -s -d'@' -f1) # extract username
+    rest=$(echo "$1"    | cut    -d'@' -f2) # everything but username
+    host=$(echo "$rest" | cut -s -d':' -f1) # host or ip
+    ds=$(echo "$rest"   | cut -s -d":" -f2) # dataset
 
     ([ -z "$un" ] || echo "$un" | grep -q "$unptn") && \
         echo "$host" | grep -q "$hostptn\|$ipptn" && \
