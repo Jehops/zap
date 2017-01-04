@@ -9,11 +9,11 @@
     - written in POSIX sh
 
 ** Synopsis
-   =% zap snap|snapshot [-dSv] TTL [-r dataset]... [dataset]...=
-   =% zap rep|replicate [-dSv] [[-r dataset]... [dataset]... remote_dest]=
-   =% zap destroy [-dsv] [host[,host]...]=
+   =$ zap snap|snapshot [-dSv] TTL [-r dataset]... [dataset]...=
+   =$ zap rep|replicate [-dSv] [[-r dataset]... [dataset]... remote_dest]=
+   =$ zap destroy [-dsv] [host[,host]...]=
 ** Description
-   =% zap snap|snapshot [-dSv] TTL [-r dataset]... [dataset]...=
+   =$ zap snap|snapshot [-dSv] TTL [-r dataset]... [dataset]...=
 
    Create ZFS snapshots that will expire after TTL (time to live) time has
    elapsed.  Expired means they will be destroyed by zap destroy.  TTL takes the
@@ -26,11 +26,14 @@
    when the pool is being scrubbed.
 
    =-d=  Create snapshots when the pool is in a DEGRADED state.
+
    =-S=  Do not create the snapshots if the pool is being scrubbed.
+
    =-v=  Be verbose.
+
    =-r=  Recursively create snapshots of all descendents.
 
-   ${0##*/} rep|replicate [-dSv] [local_dataset remote_destination]...
+   zap rep|replicate [-dSv] [local_dataset remote_destination]...
 
    Remotely replicate datasets via ssh.  Remote destinations are specified in
    zap:rep user properties or as arguments using the format
@@ -40,10 +43,12 @@
    scrubbed.
 
    =-d=  Replicate when the pool is in a DEGRADED state.
+
    =-S=  Do not replicate if the pool is being scrubbed.
+
    =-v=  Be verbose.
 
-   ${0##*/} destroy [-dsv] [host[,host2]...]
+   zap destroy [-dsv] [host[,host2]...]
 
    Destroy expired snapshots.  If a comma separated list of hosts are specified,
    then only delete snapshots originating from those hosts.  Hosts are specified
@@ -53,7 +58,9 @@
    be skipped.
 
    =-d=  Destroy when the pool is in a DEGRADED state.
+
    =-s=  Destroy if the pool is being scrubbed.
+
    =-v=  Be verbose.
 
 ** Examples
@@ -132,5 +139,4 @@ SHELL=/bin/sh
 
 -----
 
-[1] zap was influenced by zfSnap, which is under a BEER-WARE license.
-We owe the author a beer.
+[1] zap was influenced by zfSnap, which is under a BEER-WARE license.  We owe the author a beer.
