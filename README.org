@@ -1,7 +1,6 @@
-* zap -- Maintain ZFS snapshots with cron [1]
+* zap -- Maintain and replicate ZFS snapshots [1]
 
-** WARNING: The command line arguments changed in version 0.3.0!
-
+** WARNING: The command line arguments changed in version 0.6.0!
 ** Overview
    Run zap without arguments or visit https://github.com/Jehops/zap.
 *** Key features
@@ -10,72 +9,120 @@
     - written in POSIX sh
 
 ** Synopsis
-   =$ zap [-v] TTL [[-r] pool[/filesystem] ...]=
+   =% zap snap|snapshot [-dSv] TTL [-r dataset]... [dataset]...=
+   =% zap rep|replicate [-dSv] [[-r dataset]... [dataset]... remote_dest]=
+   =% zap destroy [-dsv] [host[,host]...]=
+** Description
+   =% zap snap|snapshot [-dSv] TTL [-r dataset]... [dataset]...=
 
    Create ZFS snapshots that will expire after TTL (time to live) time has
-   elapsed.  TTL takes the form =[0-9]{1,4}[dwmy]=, i.e., one to four digits
-   followed by a character to represent the time unit (day, week, month, or
-   year).  If =[[-r] pool[/filesystem] ...]= is not supplied, snapshots will be
-   created for filesystems with the property =zap:snap= set to =on=.
+   elapsed.  Expired means they will be destroyed by zap destroy.  TTL takes the
+   form [0-9]{1,4}[dwmy], i.e., one to four digits followed by a character to
+   represent the time unit (day, week, month, or year).  If neither [-r
+   dataset]... nor [dataset]... is supplied, snapshots will be created for
+   datasets with the property zap:snap set to 'on'.  By default, if the pool is
+   in any one of the states DEGRADED, FAULTED, OFFLINE, REMOVED, or UNAVAIL,
+   then no snapshots will be created.  Snapshots are still created, by default,
+   when the pool is being scrubbed.
 
+   =-d=  Create snapshots when the pool is in a DEGRADED state.
+   =-S=  Do not create the snapshots if the pool is being scrubbed.
+   =-v=  Be verbose.
+   =-r=  Recursively create snapshots of all descendents.
+
+   ${0##*/} rep|replicate [-dSv] [local_dataset remote_destination]...
+
+   Remotely replicate datasets via ssh.  Remote destinations are specified in
+   zap:rep user properties or as arguments using the format
+   [user@]hostname:dataset.  By default, if the pool is in any one of the states
+   DEGRADED, FAULTED, OFFLINE, REMOVED, or UNAVAIL, then replication will be
+   skipped.  Replication still occurs, by default, when the pool is being
+   scrubbed.
+
+   =-d=  Replicate when the pool is in a DEGRADED state.
+   =-S=  Do not replicate if the pool is being scrubbed.
    =-v=  Be verbose.
 
-   =-r=  Snapshots will be created for all dependent datasets.
+   ${0##*/} destroy [-dsv] [host[,host2]...]
 
-   =$ zap -d [-v]=
+   Destroy expired snapshots.  If a comma separated list of hosts are specified,
+   then only delete snapshots originating from those hosts.  Hosts are specified
+   without any domain information, i.e., as returned by hostname -s.  By
+   default, if the pool is in any one of the states DEGRADED, FAULTED, OFFLINE,
+   REMOVED, or UNAVAIL, or if the pool is being scrubbed, then the destroy will
+   be skipped.
 
-   Destroy expired snapshots.
+   =-d=  Destroy when the pool is in a DEGRADED state.
+   =-s=  Destroy if the pool is being scrubbed.
+   =-v=  Be verbose.
 
 ** Examples
    Create snapshots that will last for 1 day, 3 weeks, 6 months, and 1 year.
 #+BEGIN_SRC sh
-   $ zap 1d zroot/ROOT/default
-   $ zap 3w tank zroot/usr/home/nox zroot/var
-   $ zap 6m zroot/usr/home/jrm zroot/usr/home/mem
-   $ zap 1y tank/backup
+   $ zap snap 1d zroot/ROOT/default
+   $ zap snap 3w tank zroot/usr/home/nox zroot/var
+   $ zap snap 6m zroot/usr/home/jrm zroot/usr/home/mem
+   $ zap snap 1y tank/backup
 #+END_SRC
 
-   Create snapshots (recursively for zroot/var).  Be verbose.
+   Create snapshots (recursively for tank and zroot/var) that will expire after
+   3 weeks even if if the pool is DEGRADED.  Be verbose.
 #+BEGIN_SRC sh
-      $ zap -v 3w tank zroot/usr/home/nox -r zroot/var
+   $ zap snap -dv 3w -r tank -r zroot/var zroot/usr/home/nox
 #+END_SRC
 
-   Create the same snapshots for filesystems with the =zap:snap= property set to
-   =on=.
+   Create snapshots for datasets with the zap:snap property set to 'on'.
 #+BEGIN_SRC sh
-   $ zap 1d
-   $ zap 3w
-   $ zap 6m
-   $ zap 1y
+   $ zap snap 1d
+   $ zap snap 3w
+   $ zap snap 6m
+   $ zap snap 1y
+#+END_SRC
+
+   Replicate datasets with the zap:rep user property set to a remote
+   destination.  Be verbose.
+#+BEGIN_SRC sh
+   $ zap rep -v
+#+END_SRC
+
+   Replicate datasets from host phe to host bravo.
+#+BEGIN_SRC sh
+   $ zap rep zroot/ROOT/defalut jrm@bravo:rback/phe zroot/usr/home/jrm jrm@bravo:rback/phe
 #+END_SRC
 
    Destroy expired snapshots.
+#+BEGIN_SRC sh
+   $ zap destroy
+#+END_SRC
 
-   =$ zap -d=
+   Destroy expired snapshots that originated from either the host awarnach or
+   the host gly.  Be verbose.
+#+BEGIN_SRC sh
+   $ zap destroy -v awarnach,gly
+#+END_SRC
 
-*** Automatically create and destroy snapshots with cron
+   Automate rolling spanshots and replication with /etc/crontab entries like these examples.  Taking snapshots is normally cheap, so it makes sense to do it often.  Destroying snapshots can thrash disks, so I only do it every 24 hours.  Sensible replication frequencies can vary with different factors.  Adjust accordingly to suit your needs.
 #+BEGIN_SRC sh
 $ cat /etc/crontab
 
 SHELL=/bin/sh
 
 #minute	hour	mday	month	wday	who	command
-# create specified snapshots
-*/15	*	*	*	*	root	/usr/local/bin/zap 1d zroot/ROOT/default zroot/usr/home/jrm
-10	14	*	*	*	root	/usr/local/bin/zap 1w zroot/ROOT/default zroot/usr/home/jrm
-22	14	*	*	*	root	/usr/local/bin/zap 1w zroot/ROOT/default zroot/usr/home/jrm
-22	16	*	*	1	root	/usr/local/bin/zap 1m zroot/ROOT/default zroot/usr/home/jrm
 
-# or create snapshots based on the zap:snap property
-*/15	*	*	*	*	root	/usr/local/bin/zap 1d
-10	14	*	*	*	root	/usr/local/bin/zap 1w
-22	14	*	*	*	root	/usr/local/bin/zap 1w
-22	16	*	*	1	root	/usr/local/bin/zap 1m
+# take snapshots
+*/5	*	*	*	*	zap	/usr/local/bin/zap snap 1d
+14	*/4	*	*	*	zap	/usr/local/bin/zap snap 1w
+14	00	*	*	1	zap	/usr/local/bin/zap snap 1m
 
 # destroy snapshots
-44	*/4	*	*	*	root	/usr/local/bin/zap -d
-#+END_SRC
+44	04	*	*	*	root	/usr/local/bin/zap destroy
 
+# replicate datasets
+54	*/1	*	*	*	zap     /usr/local/bin/zap rep
+#+END_SRC
+** See also
+   Refer to http://ftfl.ca/blog/2016-12-27-zfs-replication.html for a
+   description of a replication strategy.
 ** Authors and Contributors
    - Joseph Mingrone <jrm@ftfl.ca>
    - Tobias Kortkamp <t@tobik.me>

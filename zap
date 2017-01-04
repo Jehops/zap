@@ -52,42 +52,52 @@ NAME
    ${0##*/} -- maintain and replicate ZFS snapshots
 
 SYNOPSIS
-   ${0##*/} snap|snapshot [-v] TTL [-r dataset]... [dataset]...
-   ${0##*/} rep|replicate [-v] [local_dataset remote_destination]...
-   ${0##*/} destroy [-v] [host[,host]...]
+   ${0##*/} snap|snapshot [-dSv] TTL [-r dataset]... [dataset]...
+   ${0##*/} rep|replicate [-dSv] [[-r dataset]... [dataset]... remote_dest]
+   ${0##*/} destroy [-dsv] [host[,host]...]
 
 DESCRIPTION
-   ${0##*/} snap|snapshot [-v] TTL [-r dataset]... [dataset]...
+   ${0##*/} snap|snapshot [-dSv] TTL [-r dataset]... [dataset]...
 
    Create ZFS snapshots that will expire after TTL (time to live) time has
    elapsed.  Expired means they will be destroyed by ${0##*/} destroy.  TTL
    takes the form [0-9]{1,4}[dwmy], i.e., one to four digits followed by a
    character to represent the time unit (day, week, month, or year).  If neither
    [-r dataset]... nor [dataset]... is supplied, snapshots will be created for
-   datasets with the property zap:snap set to 'on'.
+   datasets with the property zap:snap set to 'on'.  By default, if the pool is
+   in any one of the states DEGRADED, FAULTED, OFFLINE, REMOVED, or UNAVAIL,
+   then no snapshots will be created.  Snapshots are still created, by default,
+   when the pool is being scrubbed.
 
-   -v  Be verbose
-   -r  Recursively create snapshots of all descendents
+   -d  Create snapshots when the pool is in a DEGRADED state.
+   -S  Do not create the snapshots if the pool is being scrubbed.
+   -v  Be verbose.
+   -r  Recursively create snapshots of all descendents.
 
-   ${0##*/} rep|replicate [-v] [local_dataset remote_destination]...
+   ${0##*/} rep|replicate [-dSv] [local_dataset remote_destination]...
 
-   Remotly replicate datasets via ssh.  Remote destinations are specified in
-   zap:rep user properties or as arguments.  Remote destinations are specificed
-   using the format [user@]hostname:dataset.
+   Remotely replicate datasets via ssh.  Remote destinations are specified in
+   zap:rep user properties or as arguments using the format
+   [user@]hostname:dataset.  By default, if the pool is in any one of the states
+   DEGRADED, FAULTED, OFFLINE, REMOVED, or UNAVAIL, then replication will be
+   skipped.  Replication still occurs, by default, when the pool is being
+   scrubbed.
 
-   TODO: Describe setting up permissions and possible changes on the remote
-   side.
-   TODO: More details described at
-   http://ftfl.ca/blog/beta/2016-12-27-zfs-replication.html
-
+   -d  Replicate when the pool is in a DEGRADED state.
+   -S  Do not replicate if the pool is being scrubbed.
    -v  Be verbose.
 
-   ${0##*/} destroy [-v] [host[,host2]...]
+   ${0##*/} destroy [-dsv] [host[,host2]...]
 
    Destroy expired snapshots.  If a comma separated list of hosts are specified,
    then only delete snapshots originating from those hosts.  Hosts are specified
-   without any domain information, i.e., as returned by hostname -s.
+   without any domain information, i.e., as returned by hostname -s.  By
+   default, if the pool is in any one of the states DEGRADED, FAULTED, OFFLINE,
+   REMOVED, or UNAVAIL, or if the pool is being scrubbed, then the destroy will
+   be skipped.
 
+   -d  Destroy when the pool is in a DEGRADED state.
+   -s  Destroy if the pool is being scrubbed.
    -v  Be verbose.
 
 EXAMPLES
@@ -98,8 +108,8 @@ EXAMPLES
       $ ${0##*/} snap 1y tank/backup
 
    Create snapshots (recursively for tank and zroot/var) that will expire after
-   3 weeks.  Be verbose.
-      $ ${0##*/} snap 3w -v -r tank -r zroot/var zroot/usr/home/nox
+   3 weeks even if if the pool is DEGRADED.  Be verbose.
+      $ ${0##*/} snap -dv 3w -r tank -r zroot/var zroot/usr/home/nox
 
    Create snapshots for datasets with the zap:snap property set to 'on'.
       $ ${0##*/} snap 1d
@@ -112,8 +122,8 @@ EXAMPLES
       $ ${0##*/} rep -v
 
    Replicate datasets from host phe to host bravo.
-      $ ${0##*/} rep zroot/ROOT/defalut jrm@bravo:rback/phe \
-                     zroot/usr/home/jrm jrm@bravo:rback/phe
+      $ ${0##*/} rep zroot/ROOT/defalut jrm@bravo:rback/phe \\
+                zroot/usr/home/jrm jrm@bravo:rback/phe
 
    Destroy expired snapshots.
       $ ${0##*/} destroy
@@ -123,8 +133,15 @@ EXAMPLES
       $ ${0##*/} destroy -v awarnach,gly
 
 AUTHORS AND CONTRIBUTORS
-Joseph Mingrone <jrm@ftfl.ca>
-Tobias Kortkamp <t@tobik.me>
+   Joseph Mingrone <jrm@ftfl.ca>
+   Tobias Kortkamp <t@tobik.me>
+
+BUGS
+   https://github.com/Jehops/zap/issues
+
+SEE ALSO
+   Refer to http://ftfl.ca/blog/2016-12-27-zfs-replication.html for a
+   description of a replication strategy.
 
 VERSION
    ${0##*/} version ${version}
