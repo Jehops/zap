@@ -122,8 +122,7 @@ EXAMPLES
       $ ${0##*/} rep -v
 
    Replicate datasets from host phe to host bravo.
-      $ ${0##*/} rep zroot/ROOT/defalut jrm@bravo:rback/phe \\
-                zroot/usr/home/jrm jrm@bravo:rback/phe
+      $ ${0##*/} rep zroot/ROOT/defalut zroot/usr/home/jrm jrm@bravo:rback/phe
 
    Destroy expired snapshots.
       $ ${0##*/} destroy

@@ -96,7 +96,7 @@
 
    Replicate datasets from host phe to host bravo.
 #+BEGIN_SRC sh
-   $ zap rep zroot/ROOT/defalut jrm@bravo:rback/phe zroot/usr/home/jrm jrm@bravo:rback/phe
+   $ zap rep zroot/ROOT/defalut zroot/usr/home/jrm jrm@bravo:rback/phe
 #+END_SRC
 
    Destroy expired snapshots.
