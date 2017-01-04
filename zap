@@ -207,10 +207,12 @@ warn () {
 
 # ==============================================================================
 destroy () {
-    while getopts ":v" opt; do
+    while getopts ":dsv" opt; do
         case $opt in
-            v)  v_opt=1 ;;
-            \?) fatal "Invalid option: -$OPTARG" ;;
+            d)  d_opt='-d' ;;
+            s)  s_opt=1    ;;
+            v)  v_opt=1    ;;
+            \?) fatal "Invalid destroy() option -$OPTARG" ;;
         esac
     done
     shift $(( OPTIND - 1 ))
@@ -227,10 +229,11 @@ destroy () {
     for i in $(zfs list -H -t snap -o name); do
         if echo "$i" | grep -q "$zptn"; then
             pool="${i%%/*}"
-            if ! pool_ok "$pool"; then
-                warn "DID NOT destroy $i because of the state of $pool!"
-            elif pool_scrub "$pool"; then
-                warn "DID NOT destroy $i because $pool is being scrubbed!"
+            # Do not quote $d_opt, but ensure it does not contain spaces.
+            if ! pool_ok $d_opt "$pool"; then
+                warn "Did not destroy $i because of pool state."
+            elif [ -z "$s_opt" ] && pool_scrub "$pool"; then
+                warn "Did not destroy $i because $pool is being scrubbed."
             else
                 snap_ts=$(ss_ts "$(ss_st "$i")")
                 ttls=$(ttl2s "$(echo "$i"|grep -o '[0-9]\{1,4\}[dwmy]$')")
@@ -249,111 +252,139 @@ time could not be determined."
     done
 }
 
+# rep_parse [-dSv] [[-r dataset]... [dataset]... remote_dest]
 rep_parse () {
-    while getopts ":v" opt; do
+    while getopts ":drSv" opt; do
         case $opt in
-            v)  v_opt=1 ;;
-            \?) fatal "Invalid option: -$OPTARG" ;;
+            d)  d_opt='-d'        ;;
+            r)  r_opt=1           ;;
+            S)  S_opt=1           ;;
+            v)  v_opt=1           ;;
+            \?) fatal "Invalid rep_parse() option -$OPTARG." ;;
         esac
     done
-    shift $(( OPTIND - 1 ))
+    if [ -n "$r_opt" ]; then
+        shift $(( OPTIND - 2 ))
+    else
+        shift $(( OPTIND - 1 ))
+    fi
 
-    [ -n "$v_opt" ] && printf "%s\nSending snapshots...\n" "$(date)"
-    if [ -z "$*" ]; then # use zap:rep property to send
+    [ -n "$v_opt" ] && printf "%s\nReplicating...\n" "$(date)"
+    if [ -z "$*" ]; then # use zap:rep property to replicate
         for f in $(zfs list -H -o name -t volume,filesystem); do
             rdest=$(zfs get -H -o value zap:rep "$f")
-            if val_rdest "$rdest"; then
-                if [ -n "$v_opt" ]; then
-                    rep -v "$f" "$rdest"
-                else
-                    rep "$f" "$rdest"
-                fi
-            elif [ "$rdest" != '-' ]; then
-                warn "Invalid value in zap:rep user property: $rdest."
-                warn "Failed to replicate $f."
-            fi
+            rep "$f" "$rdest"
         done
-    else
-        until [ -z "$1" ] && [ -z "$2" ]; do
-            if ! zfs list -H -o name -t volume,filesystem "$1" \
-                 > /dev/null 2>&1; then
-                warn "Dataset $1 does not exist."
-                warn "Failed to replicate $1."
-            elif ! val_rdest "$2"; then
-                warn "Invalid remote replication location: $2."
-                warn "Failed to replicate $1."
-            else
-                if [ -n "$v_opt" ]; then
-                    rep -v "$1" "$2"
-                else
-                    rep "$1" "$2"
-                fi
-            fi
-            shift 2
+    else # use arguments to replicate
+        for rdest; do :; done # put the last argument in rdest
+        OPTIND=1
+        while getopts ":r:" opt; do
+            case $opt in
+                r)  rep -r "$OPTARG" "$rdest" ;;
+                \?) fatal "Invalid rep_parse() option -$OPTARG" ;;
+                :)  fatal "rep_parse() option -$OPTARG requires an argument." ;;
+            esac
+        done
+        shift $(( OPTIND - 1 ))
+
+        for f; do # equivalent to: for f in "$@"; do ...; done
+            [ "$#" -gt 1 ] && rep "$f" "$rdest"
+            shift
         done
     fi
 }
 
+# rep [-r] data_set remote_dest
 rep () {
-    while getopts ":v" opt; do
+    OPTIND=1
+    while getopts ":r" opt; do
         case $opt in
-            v)  v_opt2=1 ;;
-            \?) fatal "Invalid option: -$OPTARG" ;;
+            r)  r_opt='-R' ;;
+            \?) fatal "Invalid rep() option -$OPTARG" ;;
         esac
     done
     shift $(( OPTIND - 1 ))
 
-    [ -z "$v_opt2" ] && rd="> /dev/null"
-    sshto=$(echo "$2" | cut -d':' -f1)
-    rloc=$(echo "$2" | cut -d':' -f2)
-    lsnap=$(zfs list -rd1 -tsnap -o name -s creation "$1" \
-                | grep "@ZAP_${hn}_" | tail -1 | cut -w -f1)
-    l_ts=$(ss_ts "$(ss_st "$lsnap")")
-    fs=${1#*/}
-    # get the youngest remote snapshot for this dataset
-    rsnap=$(ssh "$sshto" "zfs list -rd1 -tsnap -o name -s creation $rloc/$fs |\
-grep @ZAP_${hn}_ | tail -1 | cut -w -f1 | sed 's/^.*@/@/'")
-    if [ -z "$rsnap" ]; then
-        [ -n "$v_opt2" ] && \
-            echo "No remote snapshots found. Sending full stream."
-        if zfs send "$lsnap" | \
-                ssh "$sshto" "zfs recv -dFv $rloc" "$rd"; then
-            zfs bookmark "$lsnap" \
-                "$(echo "$lsnap" | sed 's/@/#/')"
-        else
-            warn "Failed to replicate $lsnap to $sshto:$rloc"
+    # Do not quote $d_opt, but ensure it does not contain spaces.
+    if ! pool_ok $d_opt "${1%%/*}"; then
+        warn "DID NOT replicate $1 because of pool state!"
+    elif [ -n "$S_opt" ] && pool_scrub "${1%%/*}"; then
+        warn "DID NOT replicate $1 because '-S' was supplied and the pool is \
+being scrubbed!"
+    elif ! zfs list -H -o name -t volume,filesystem "$1" \
+           > /dev/null 2>&1; then
+        warn "Dataset $1 does not exist."
+        warn "Failed to replicate $1."
+    elif ! val_rdest "$2"; then
+        trdest=$(echo "$2" | tr '[:upper:]' '[:lower:]')
+        if [ "$trdest" != '-' ] && [ "$trdest" != 'off' ]; then
+            warn "Invalid remote replication location, $trdest."
+            warn "Failed to replicate $1."
         fi
-    else # send incremental stream
-        r_ts=$(ss_ts "$(ss_st "$rsnap")")
-        [ -n "$v_opt2" ] && echo "$lsnap > $sshto:$rloc$rsnap"
-        if [ "$l_ts" -gt "$r_ts" ]; then
-            ## ensure there is a bookmark for the remote snapshot
-            if bm=$(zfs list -rd1 -t bookmark -H -o name "$1" | \
-                        grep "${rsnap#@}"); then
-                if zfs send -i "$bm" "$lsnap" | \
-                        ssh "$sshto" "zfs recv -dv $rloc" "$rd"; then
-                    if zfs bookmark "$lsnap" \
-                           "$(echo "$lsnap" | sed 's/@/#/')"; then
-                        [ -n "$v_opt2" ] && \
-                            echo "Created bookmark for $rsnap"
+    else
+        [ -z "$v_opt" ] && rd="> /dev/null"
+        sshto=$(echo "$2" | cut -d':' -f1)
+        rloc=$(echo "$2" | cut -d':' -f2)
+        # TODO: validate lsnap
+        lsnap=$(zfs list -rd1 -tsnap -o name -s creation "$1" \
+                    | grep "@ZAP_${hn}_" | tail -1 | cut -w -f1)
+        l_ts=$(ss_ts "$(ss_st "$lsnap")")
+        fs="${1#*/}"
+        # get the youngest remote snapshot for this dataset
+        rsnap=$(ssh "$sshto" "zfs list -rd1 -tsnap -o name -s creation \
+$rloc/$fs 2>/dev/null | grep @ZAP_${hn}_ | tail -1 | sed 's/^.*@/@/'")
+        if [ -z "$rsnap" ]; then
+            [ -n "$v_opt" ] && \
+                echo "No remote snapshots found. Sending full stream."
+            # $r_opt may by empty, so do not quote it, but ensure it never
+            # contains whitespace.
+            if zfs send -p $r_opt "$lsnap" | \
+                    ssh "$sshto" "zfs recv -dFuv $rloc" "$rd"; then
+                zfs bookmark "$lsnap" \
+                    "$(echo "$lsnap" | sed 's/@/#/')"
+            else
+                warn "Failed to replicate $lsnap to $sshto:$rloc"
+            fi
+        else # send incremental stream
+            r_ts=$(ss_ts "$(ss_st "$rsnap")")
+            if [ -n "$v_opt" ]; then
+                printf "Newest snapshots:\nlocal: %s\nremote: %s\n" \
+                       "$lsnap" "$sshto:$rloc/$fs$rsnap"
+            fi
+            if [ "$l_ts" -gt "$r_ts" ]; then
+                ## ensure there is a bookmark for the remote snapshot
+                if bm=$(zfs list -rd1 -t bookmark -H -o name "$1" | \
+                            grep "${rsnap#@}"); then
+                    if zfs send -i "$bm" "$lsnap" | \
+                            ssh "$sshto" "zfs recv -duv $rloc" "$rd"; then
+                        if zfs bookmark "$lsnap" \
+                               "$(echo "$lsnap" | sed 's/@/#/')"; then
+                            [ -n "$v_opt" ] && \
+                                echo "Created bookmark for $lsnap"
+                        else
+                            warn "Failed to create bookmark for $lsnap"
+                        fi
                     else
-                        warn "Failed to create bookmark for $lsnap"
+                        warn "Failed to replicate $lsnap > $sshto:$rloc"
                     fi
                 else
-                    warn "Failed to replicate $lsnap > $sshto:$rloc"
+                    warn "Failed to find bookmark for remote snapshot, $rsnap."
                 fi
             else
-                warn "Failed to find bookmark for remote snapshot, $rsnap."
+                [ -n "$v_opt" ] && echo "Nothing new to replicate."
             fi
         fi
     fi
 }
 
+# snap_parse [-dSv] TTL [-r dataset]... [dataset]...
 snap_parse () {
-    while getopts ":v" opt; do
+    while getopts ":dSv" opt; do
         case $opt in
-            v)  v_opt=1 ;;
-            \?) fatal "Invalid option: -$OPTARG" ;;
+            d)  d_opt='-d'        ;;
+            S)  S_opt=1           ;;
+            v)  v_opt=1           ;;
+            \?) fatal "Invalid snap_parse() option -$OPTARG." ;;
         esac
     done
     shift $(( OPTIND - 1 ))
@@ -368,68 +399,61 @@ snap_parse () {
         [ -n "$v_opt" ] && printf "%s\nCreating snapshots...\n" "$(date)"
         for f in $(zfs list -Ho name -t volume,filesystem); do
             if [ "$(zfs get -H -o value zap:snap "$f")" = 'on' ]; then
-                if [ -n "$v_opt" ]; then
-                    snap -v "$ttl" "$f"
-                else
-                    snap "$ttl" "$f"
-                fi
+                snap "$f"
             fi
         done
     else # use arguments to create snapshots
+        OPTIND=1
         while getopts ":r:" opt; do
             case $opt in
-                r)
-                    if [ -n "$v_opt" ]; then
-                        snap "$ttl" -v -r "$OPTARG"
-                    else
-                        snap "$ttl" -r "$OPTARG"
-                    fi
-                    ;;
-                \?) fatal "Invalid snap_parse() option: -$OPTARG" ;;
+                r)  snap -r "$OPTARG" ;;
+                \?) fatal "Invalid snap_parse() option -$OPTARG" ;;
+                :)  fatal "snap_parse: Option -$OPTARG requires an argument." ;;
             esac
         done
         shift $(( OPTIND - 1 ))
 
-        for f in "$@"; do
-            if [ -n "$v_opt" ]; then
-                snap "$ttl" -v "$f"
-            else
-                snap "$ttl" "$f"
-            fi
+        for f; do # equivalent to: for f in "$@"; do ...; done
+            snap "$f"
         done
     fi
 }
 
+# snap [-r] dataset
 snap () {
-    while getopts ":rv" opt; do
+    OPTIND=1
+    unset r_opt
+    while getopts ":r" opt; do
         case $opt in
-            r)  r_opt=1  ;;
-            v)  v_opt2=1 ;;
-            \?) fatal "Invalid create() option: -$OPTARG" ;;
+            r)  r_opt='-r' ;;
+            \?) fatal "Invalid snap() option -$OPTARG" ;;
         esac
     done
     shift $(( OPTIND - 1 ))
 
-    if ! pool_ok "${2%%/*}"; then
-        warn "DID NOT snapshot $2 because of pool state!"
+    # Do not quote $d_opt, but ensure it does not contain spaces.
+    if ! pool_ok $d_opt "${1%%/*}"; then
+        warn "DID NOT snapshot $1 because of pool state!"
+    elif [ -n "$S_opt" ] && pool_scrub "${1%%/*}"; then
+        warn "DID NOT snapshot $1 because '-S' was supplied and the pool is \
+being scrubbed!"
     else
-        if [ -n "$v_opt2" ]; then
+        if [ -n "$v_opt" ]; then
             printf "zfs snap "
             [ -n "$r_opt" ] && printf "\-r "
-            echo "${2}@ZAP_${hn}_${date}--${ttl}"
+            echo "$1@ZAP_${hn}_${date}--${ttl}"
         fi
-        if [ -n "$r_opt" ]; then
-            zfs snap -r "$2@ZAP_${hn}_${date}--${ttl}"
-        else
-            zfs snap "$2@ZAP_${hn}_${date}--${ttl}"
-        fi
+        # Do not quote $d_opt, but ensure it does not contain spaces.
+        zfs snap $r_opt "$1@ZAP_${hn}_${date}--${ttl}"
     fi
 }
 # ==============================================================================
 
 os=$(uname)
 case $os in
-    'Darwin'|'FreeBSD'|'Linux'|'SunOS') ;;
+    # Needs testing on Linux
+    #'Darwin'|'FreeBSD'|'Linux'|'SunOS') ;;
+    'FreeBSD') ;;
     *)
         fatal "${0##*/} has not be tested on $os.
        Feedback and patches are welcome." ;;
