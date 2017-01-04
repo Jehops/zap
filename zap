@@ -142,8 +142,19 @@ is_pint () {
     return 0
 }
 
+# pool_ok [-d] pool
+# If the -d option is supplied, consider the DEGRADED state ok.
 pool_ok () {
-    skip="FAULTED\|OFFLINE\|REMOVED\|UNAVAIL"
+    skip="DEGRADED\|FAULTED\|OFFLINE\|REMOVED\|UNAVAIL"
+    OPTIND=1
+    while getopts ":d" opt; do
+        case $opt in
+            d)  skip=$(echo "$skip" | sed "s/DEGRADED\\\|//") ;;
+            \?) fatal "Invalid pool_ok() option -$OPTARG" ;;
+        esac
+    done
+    shift $(( OPTIND - 1 ))
+
     if zpool status "$1" | grep -q "$skip"; then
         return 1
     fi
