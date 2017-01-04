@@ -1,6 +1,6 @@
 * zap -- Maintain and replicate ZFS snapshots [1]
 
-** WARNING: The command line arguments changed in version 0.6.0!
+** WARNING: The command line arguments and the format of zap snapshot names changed in version 0.6.0!  The name change means you will have to manually clean up old zap snapshots.
 ** Overview
    Run zap without arguments or visit https://github.com/Jehops/zap.
 *** Key features
