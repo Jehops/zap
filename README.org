@@ -9,11 +9,13 @@
     - written in POSIX sh
 
 ** Synopsis
-   =$ zap snap|snapshot [-dSv] TTL [-r dataset]... [dataset]...=
-   =$ zap rep|replicate [-dSv] [[-r dataset]... [dataset]... remote_dest]=
-   =$ zap destroy [-dsv] [host[,host]...]=
+   =% zap snap|snapshot [-dSv] TTL [-r dataset]... [dataset]...=
+
+   =% zap rep|replicate [-dSv] [[-r dataset]... [dataset]... remote_dest]=
+
+   =% zap destroy [-dsv] [host[,host]...]=
 ** Description
-   =$ zap snap|snapshot [-dSv] TTL [-r dataset]... [dataset]...=
+   =% zap snap|snapshot [-dSv] TTL [-r dataset]... [dataset]...=
 
    Create ZFS snapshots that will expire after TTL (time to live) time has
    elapsed.  Expired means they will be destroyed by zap destroy.  TTL takes the
