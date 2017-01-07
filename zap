@@ -198,7 +198,9 @@ pool_resilver () {
 }
 
 ss_st () {
-    echo "$1" | sed "s/^.*@ZAP_${hn}_//;s/--[0-9]\{1,4\}[dwmy]$//;s/p/+/"
+    # Using an extended regexp here, because $hn may contains a list of
+    # alternatives like awarnach|bravo|phe.
+    echo "$1" | sed -r "s/^.*@ZAP_(${hn})_//;s/--[0-9]{1,4}[dwmy]$//;s/p/+/"
 }
 
 ss_ts () {
@@ -246,16 +248,18 @@ destroy () {
     shift $(( OPTIND - 1 ))
 
     if [ -n "$*" ]; then
-        # hostname was specified; only delete snapshots for that host
-        hl=$(echo "$*" | sed 's/[[:space:]]//g;s/,/\\|/g')
-        zptn="@ZAP_\(${hl}\)_..*--[0-9]\{1,4\}[dwmy]"
+        # One or more hostnames were specified, so delete snapshots for those
+        # hosts.  Using an extended regexp here, because sed in ss_st() requires
+        # it for (host1|host2...).
+        hn=$(echo "$*" | sed 's/[[:space:]]//g;s/,/|/g')
+        zptn="@ZAP_(${hn})_..*--[0-9]{1,4}[dwmy]"
     fi
 
     now_ts=$(date '+%s')
 
     [ -n "$v_opt" ] && printf "%s\nDestroying snapshots...\n" "$(date)"
     for i in $(zfs list -H -t snap -o name); do
-        if echo "$i" | grep -q "$zptn"; then
+        if echo "$i" | grep -E -q "$zptn"; then
             pool="${i%%/*}"
             # Do not quote $d_opt, but ensure it does not contain spaces.
             if ! pool_ok $d_opt "$pool"; then
