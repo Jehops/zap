@@ -291,7 +291,7 @@ rep_parse () {
             S)  L_opt=1           ;;
             r)  r_opt=1           ;;
             S)  S_opt=1           ;;
-            v)  v_opt=1           ;;
+            v)  v_opt='-v'        ;;
             \?) fatal "Invalid rep_parse() option -$OPTARG." ;;
         esac
     done
@@ -357,7 +357,6 @@ a resilver in progress!"
             warn "Failed to replicate $1."
         fi
     else
-        [ -z "$v_opt" ] && rd="> /dev/null"
         sshto=$(echo "$2" | cut -d':' -f1)
         rloc=$(echo "$2" | cut -d':' -f2)
         # TODO: validate lsnap
@@ -374,7 +373,7 @@ $rloc/$fs 2>/dev/null | grep @ZAP_${hn}_ | tail -1 | sed 's/^.*@/@/'")
             # $r_opt may by empty, so do not quote it, but ensure it never
             # contains whitespace.
             if zfs send -p $r_opt "$lsnap" | \
-                    ssh "$sshto" "zfs recv -dFuv $rloc" "$rd"; then
+                    ssh "$sshto" "zfs recv -dFu $v_opt $rloc"; then
                 zfs bookmark "$lsnap" \
                     "$(echo "$lsnap" | sed 's/@/#/')"
             else
@@ -391,7 +390,7 @@ $rloc/$fs 2>/dev/null | grep @ZAP_${hn}_ | tail -1 | sed 's/^.*@/@/'")
                 if bm=$(zfs list -rd1 -t bookmark -H -o name "$1" | \
                             grep "${rsnap#@}"); then
                     if zfs send -i "$bm" "$lsnap" | \
-                            ssh "$sshto" "zfs recv -duv $rloc" "$rd"; then
+                            ssh "$sshto" "zfs recv -du $v_opt $rloc" ; then
                         if zfs bookmark "$lsnap" \
                                "$(echo "$lsnap" | sed 's/@/#/')"; then
                             [ -n "$v_opt" ] && \
