@@ -45,19 +45,19 @@ fatal () {
 }
 
 help () {
-    readonly version=0.6.0
+    readonly version=0.6.4
 
     cat <<EOF
 NAME
    ${0##*/} -- maintain and replicate ZFS snapshots
 
 SYNOPSIS
-   ${0##*/} snap|snapshot [-dLSv] TTL [-r dataset]... [dataset]...
-   ${0##*/} rep|replicate [-dLSv] [[-r dataset]... [dataset]... remote_dest]
+   ${0##*/} snap|snapshot [-dLSv] TTL [[-r] dataset [[-r] dataset]...]
+   ${0##*/} rep|replicate [-dLSv] [remote_dest [-r] dataset [[-r] dataset]...]
    ${0##*/} destroy [-dlsv] [host[,host]...]
 
 DESCRIPTION
-   ${0##*/} snap|snapshot [-dLSv] TTL [-r dataset]... [dataset]...
+   ${0##*/} snap|snapshot [-dLSv] TTL [[-r] dataset [[-r] dataset]...]
 
    Create ZFS snapshots that will expire after TTL (time to live) time has
    elapsed.  Expired means they will be destroyed by ${0##*/} destroy.  TTL
@@ -75,7 +75,7 @@ DESCRIPTION
    -v  Be verbose.
    -r  Recursively create snapshots of all descendents.
 
-   ${0##*/} rep|replicate [-dLSv] [local_dataset remote_destination]...
+   ${0##*/} rep|replicate [-dLSv] [remote_dest [-r] dataset [[-r] dataset]...]
 
    Remotely replicate datasets via ssh.  Remote destinations are specified in
    zap:rep user properties or as arguments using the format
@@ -87,6 +87,7 @@ DESCRIPTION
    -d  Replicate when the pool is in a DEGRADED state.
    -L  Do not replicate if the pool has a resilver in progress.
    -S  Do not replicate if the pool is being scrubbed.
+   -r  Recursively replicate descendents as well.
    -v  Be verbose.
 
    ${0##*/} destroy [-dsv] [host[,host2]...]
@@ -105,10 +106,10 @@ DESCRIPTION
 
 EXAMPLES
    Create snapshots that will last for 1 day, 3 weeks, 6 months, and 1 year.
-      $ ${0##*/} snap 1d zroot/ROOT/default
+      $ ${0##*/} snap -v 1d zroot/ROOT
       $ ${0##*/} snap 3w tank zroot/usr/home/nox zroot/var
       $ ${0##*/} snap 6m zroot/usr/home/jrm zroot/usr/home/mem
-      $ ${0##*/} snap 1y tank/backup
+      $ ${0##*/} snap -v 1y -r tank/backup
 
    Create snapshots (recursively for tank and zroot/var) that will expire after
    3 weeks even if if the pool is DEGRADED.  Be verbose.
@@ -125,7 +126,7 @@ EXAMPLES
       $ ${0##*/} rep -v
 
    Replicate datasets from host phe to host bravo.
-      $ ${0##*/} rep zroot/ROOT/defalut zroot/usr/home/jrm jrm@bravo:rback/phe
+      $ ${0##*/} rep zap@bravo:rback/phe -r zroot/ROOT zroot/usr/home/jrm
 
    Destroy expired snapshots.
       $ ${0##*/} destroy
@@ -287,23 +288,18 @@ time could not be determined."
     done
 }
 
-# rep_parse [-dSv] [[-r dataset]... [dataset]... remote_dest]
+# rep_parse [-dSv] [remote_dest [[-r] dataset [[-r] dataset]...]
 rep_parse () {
-    while getopts ":dLrSv" opt; do
+    while getopts ":dLSv" opt; do
         case $opt in
             d)  d_opt='-d'        ;;
             S)  L_opt=1           ;;
-            r)  r_opt=1           ;;
             S)  S_opt=1           ;;
             v)  v_opt='-v'        ;;
             \?) fatal "Invalid rep_parse() option -$OPTARG." ;;
         esac
     done
-    if [ -n "$r_opt" ]; then
-        shift $(( OPTIND - 2 ))
-    else
-        shift $(( OPTIND - 1 ))
-    fi
+    shift $(( OPTIND - 1 ))
 
     [ -n "$v_opt" ] && printf "%s\nReplicating...\n" "$(date)"
     if [ -z "$*" ]; then # use zap:rep property to replicate
@@ -312,20 +308,23 @@ rep_parse () {
             rep "$f" "$rdest"
         done
     else # use arguments to replicate
-        for rdest; do :; done # put the last argument in rdest
-        OPTIND=1
-        while getopts ":r:" opt; do
-            case $opt in
-                r)  rep -r "$OPTARG" "$rdest" ;;
-                \?) fatal "Invalid rep_parse() option -$OPTARG" ;;
-                :)  fatal "rep_parse() option -$OPTARG requires an argument." ;;
-            esac
-        done
-        shift $(( OPTIND - 1 ))
+        rdest="$1"; shift
+        while [ "$#" -gt 0 ]; do
+            OPTIND=1
+            while getopts ":r:" opt; do
+                case $opt in
+                    r)  rep -r "$OPTARG" "$rdest" ;;
+                    \?) fatal "Invalid rep_parse() option -$OPTARG" ;;
+                    :)  fatal "rep_parse() option -$OPTARG requires an \
+argument." ;;
+                esac
+            done
+            shift $(( OPTIND - 1 ))
 
-        for f; do # equivalent to: for f in "$@"; do ...; done
-            [ "$#" -gt 1 ] && rep "$f" "$rdest"
-            shift
+            if [ "$#" -gt 0 ]; then
+                rep "$1" "$rdest"
+                shift
+            fi
         done
     fi
 }
@@ -360,12 +359,13 @@ a resilver in progress!"
             warn "Invalid remote replication location, $trdest."
             warn "Failed to replicate $1."
         fi
+    elif ! lsnap=$(zfs list -rd1 -tsnap -o name -s creation "$1" \
+                       | grep "@ZAP_${hn}_" | tail -1 | cut -w -f1) ||
+         [ -z "$lsnap" ]; then
+         warn "Failed to find the newest local snapshot for $1."
     else
         sshto=$(echo "$2" | cut -d':' -f1)
         rloc=$(echo "$2" | cut -d':' -f2)
-        # TODO: validate lsnap
-        lsnap=$(zfs list -rd1 -tsnap -o name -s creation "$1" \
-                    | grep "@ZAP_${hn}_" | tail -1 | cut -w -f1)
         l_ts=$(ss_ts "$(ss_st "$lsnap")")
         fs="${1#*/}"
         # get the youngest remote snapshot for this dataset
@@ -376,8 +376,13 @@ $rloc/$fs 2>/dev/null | grep @ZAP_${hn}_ | tail -1 | sed 's/^.*@/@/'")
                 echo "No remote snapshots found. Sending full stream."
             # $r_opt may by empty, so do not quote it, but ensure it never
             # contains whitespace.
+            [ -n "$v_opt" ] && \
+                echo "zfs send -p $r_opt $lsnap | ssh $sshto \"zfs recv -dFu \
+$v_opt $rloc\""
             if zfs send -p $r_opt "$lsnap" | \
                     ssh "$sshto" "zfs recv -dFu $v_opt $rloc"; then
+                [ -n "$v_opt" ] && \
+                    echo "zfs bookmark $lsnap $(echo "$lsnap" | sed 's/@/#/')"
                 zfs bookmark "$lsnap" \
                     "$(echo "$lsnap" | sed 's/@/#/')"
             else
@@ -385,28 +390,43 @@ $rloc/$fs 2>/dev/null | grep @ZAP_${hn}_ | tail -1 | sed 's/^.*@/@/'")
             fi
         else # send incremental stream
             r_ts=$(ss_ts "$(ss_st "$rsnap")")
-            if [ -n "$v_opt" ]; then
-                printf "Newest snapshots:\nlocal: %s\nremote: %s\n" \
-                       "$lsnap" "$sshto:$rloc/$fs$rsnap"
-            fi
+#            if [ -n "$v_opt" ]; then
+#                printf "Newest snapshots:\nlocal: %s\nremote: %s\n" \
+#                       "$lsnap" "$sshto:$rloc/$fs$rsnap"
+#            fi
             if [ "$l_ts" -gt "$r_ts" ]; then
-                ## ensure there is a bookmark for the remote snapshot
-                if bm=$(zfs list -rd1 -t bookmark -H -o name "$1" | \
-                            grep "${rsnap#@}"); then
-                    if zfs send -i "$bm" "$lsnap" | \
-                            ssh "$sshto" "zfs recv -du $v_opt $rloc" ; then
+                ## check if there is a local snapshot for the remote snapshot
+                if ! sp=$(zfs list -rd1 -t snap -H -o name "$1" | \
+                              grep "$rsnap"); then
+                    warn "Failed to find local snapshot for remote snapshot."
+                    warn "Will attempt to fall back to a bookmark, but all \
+intermediary snapshots will not be sent."
+                fi
+                ## check if there is a bookmark for the remote snapshot
+                if [ -z "$sp" ] && ! sp=$(zfs list -rd1 -t bookmark -H -o name \
+                                              "$1" | grep "${rsnap#@}"); then
+                    warn "Failed to find bookmark for remote snapshot."
+                    warn "Failed to replicate $lsnap to $sshto:$rloc."
+                else
+                    if echo "$sp" | grep -q '@'; then i='-I'; else i='-i'; fi
+                    [ -n "$v_opt" ] && \
+                        echo "zfs send $r_opt $i $sp $lsnap | ssh $sshto \"zfs \
+recv -du $v_opt $rloc\""
+                    if zfs send $r_opt $i "$sp" "$lsnap" | \
+                            ssh "$sshto" "zfs recv -du $v_opt $rloc"; then
+                        [ -n "$v_opt" ] && \
+                            echo "zfs bookmark $lsnap $(echo "$lsnap" | sed \
+'s/@/#/')"
                         if zfs bookmark "$lsnap" \
                                "$(echo "$lsnap" | sed 's/@/#/')"; then
                             [ -n "$v_opt" ] && \
-                                echo "Created bookmark for $lsnap"
+                                echo "Created bookmark for $lsnap."
                         else
-                            warn "Failed to create bookmark for $lsnap"
+                            warn "Failed to create bookmark for $lsnap."
                         fi
                     else
-                        warn "Failed to replicate $lsnap > $sshto:$rloc"
+                        warn "Failed to replicate $lsnap to $sshto:$rloc."
                     fi
-                else
-                    warn "Failed to find bookmark for remote snapshot, $rsnap."
                 fi
             else
                 [ -n "$v_opt" ] && echo "Nothing new to replicate."
@@ -415,7 +435,7 @@ $rloc/$fs 2>/dev/null | grep @ZAP_${hn}_ | tail -1 | sed 's/^.*@/@/'")
     fi
 }
 
-# snap_parse [-dSv] TTL [-r dataset]... [dataset]...
+# snap_parse [-dSv] TTL [[-r] dataset [[-r] dataset]...]
 snap_parse () {
     while getopts ":dLSv" opt; do
         case $opt in
@@ -442,18 +462,22 @@ snap_parse () {
             fi
         done
     else # use arguments to create snapshots
-        OPTIND=1
-        while getopts ":r:" opt; do
-            case $opt in
-                r)  snap -r "$OPTARG" ;;
-                \?) fatal "Invalid snap_parse() option -$OPTARG" ;;
-                :)  fatal "snap_parse: Option -$OPTARG requires an argument." ;;
-            esac
-        done
-        shift $(( OPTIND - 1 ))
+        while [ "$#" -gt 0 ]; do
+            OPTIND=1
+            while getopts ":r:" opt; do
+                case $opt in
+                    r)  snap -r "$OPTARG" ;;
+                    \?) fatal "Invalid snap_parse() option -$OPTARG" ;;
+                    :)  fatal "snap_parse: Option -$OPTARG requires an \
+argument." ;;
+                esac
+            done
+            shift $(( OPTIND - 1 ))
 
-        for f; do # equivalent to: for f in "$@"; do ...; done
-            snap "$f"
+            if [ "$#" -gt 0 ]; then
+                snap "$1"
+                shift
+            fi
         done
     fi
 }
@@ -507,7 +531,7 @@ hostptn="^\(\([:alnum:]]\|[[:alnum:]][[:alnum:]\-]*[[:alnum:]]\)\.\)*\([[:alnum:
 ipptn="^\(\([0-9]\|[1-9][0-9]\|1[0-9]\{2\}\|2[0-4][0-9]\|25[0-5]\)\.\)\{3\}\([0-9]\|[1-9][0-9]\|1[0-9]\{2\}\|2[0-4][0-9]\|25[0-5]\)$"
 ttlptn='^[0-9]\{1,4\}[dwmy]$'
 unptn="^[[:alpha:]_][[:alnum:]_-]\{0,31\}$"
-zptn="@ZAP_${hn}_..*--[0-9]\{1,4\}[dwmy]"
+zptn="@ZAP_(${hn})_..*--[0-9]{1,4}[dwmy]" # extended re
 
 case $1 in
     snap|snapshot) shift; snap_parse "$@" ;;

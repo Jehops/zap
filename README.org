@@ -1,6 +1,7 @@
 * zap -- Maintain and replicate ZFS snapshots [1]
 
 ** WARNING: The command line arguments and the format of zap snapshot names changed in version 0.6.0!  The name change means you will have to manually clean up old zap snapshots.
+** WARNING: The 'zap rep' arguments changed in version 0.6.4.
 ** Overview
    Run zap without arguments or visit https://github.com/Jehops/zap.
 *** Key features
@@ -9,13 +10,13 @@
     - written in POSIX sh
 
 ** Synopsis
-   =% zap snap|snapshot [-dLSv] TTL [-r dataset]... [dataset]...=
+   =% zap snap|snapshot [-dLSv] TTL [[-r] dataset [[-r] dataset]...]=
 
-   =% zap rep|replicate [-dLSv] [[-r dataset]... [dataset]... remote_dest]=
+   =% zap rep|replicate [-dLSv] [remote_dest [-r] dataset [[-r] dataset]...]=
 
    =% zap destroy [-dlsv] [host[,host]...]=
 ** Description
-   =% zap snap|snapshot [-dLSv] TTL [-r dataset]... [dataset]...=
+   =% zap snap|snapshot [-dLSv] TTL [[-r] dataset [[-r] dataset]...]=
 
    Create ZFS snapshots that will expire after TTL (time to live) time has
    elapsed.  Expired means they will be destroyed by zap destroy.  TTL
@@ -37,7 +38,7 @@
 
    =-r=  Recursively create snapshots of all descendents.
 
-   zap rep|replicate [-dLSv] [local_dataset remote_destination]...
+   zap rep|replicate [-dLSv] [remote_dest [-r] dataset [[-r] dataset]...]=
 
    Remotely replicate datasets via ssh.  Remote destinations are specified in
    zap:rep user properties or as arguments using the format
@@ -51,6 +52,8 @@
    =-L=  Do not replicate if the pool has a resilver in progress.
 
    =-S=  Do not replicate if the pool is being scrubbed.
+
+   =-r=  Recursively replicate descendents as well.
 
    =-v=  Be verbose.
 
@@ -74,10 +77,10 @@
 ** Examples
    Create snapshots that will last for 1 day, 3 weeks, 6 months, and 1 year.
 #+BEGIN_SRC sh
-   % zap snap 1d zroot/ROOT/default
+   % zap snap -v 1d -r zroot/ROOT
    % zap snap 3w tank zroot/usr/home/nox zroot/var
    % zap snap 6m zroot/usr/home/jrm zroot/usr/home/mem
-   % zap snap 1y tank/backup
+   % zap snap -v 1y -r tank/backup
 #+END_SRC
 
    Create snapshots (recursively for tank and zroot/var) that will expire after
@@ -102,7 +105,7 @@
 
    Replicate datasets from host phe to host bravo.
 #+BEGIN_SRC sh
-   % zap rep zroot/ROOT/defalut zroot/usr/home/jrm jrm@bravo:rback/phe
+   % zap rep zap@bravo:rback/phe -r zroot/ROOT zroot/usr/home/jrm
 #+END_SRC
 
    Destroy expired snapshots.
@@ -116,7 +119,7 @@
    % zap destroy -v awarnach,gly
 #+END_SRC
 
-   Automate rolling spanshots and replication with /etc/crontab entries like these examples.  Taking snapshots is normally cheap, so it makes sense to do it often.  Destroying snapshots can thrash disks, so I only do it every 24 hours.  Sensible replication frequencies can vary with different factors.  Adjust accordingly to suit your needs.
+   Automate rolling snapshots and replication with /etc/crontab entries like these examples.  Taking snapshots is normally cheap, so it makes sense to do it often.  Destroying snapshots can thrash disks, so I only do it every 24 hours.  Sensible replication frequencies can vary with different factors.  Adjust accordingly to suit your needs.
 #+BEGIN_SRC sh
 $ cat /etc/crontab
 
