@@ -38,7 +38,7 @@
 
    =-r=  Recursively create snapshots of all descendents.
 
-   zap rep|replicate [-dLSv] [remote_dest [-r] dataset [[-r] dataset]...]=
+   =zap rep|replicate [-dLSv] [remote_dest [-r] dataset [[-r] dataset]...]=
 
    Remotely replicate datasets via ssh.  Remote destinations are specified in
    zap:rep user properties or as arguments using the format
@@ -57,7 +57,7 @@
 
    =-v=  Be verbose.
 
-   zap destroy [-dlsv] [host[,host2]...]
+   =zap destroy [-dlsv] [host[,host2]...]=
 
    Destroy expired snapshots.  If a comma separated list of hosts are specified,
    then only delete snapshots originating from those hosts.  Hosts are specified
