@@ -27,7 +27,7 @@
 
    =destroy=
 
-   Use the =destroy= to subcommand to destroy expired snapshots.  By default, only snapshots originating
+   Use the =destroy= subcommand to destroy expired snapshots.  By default, only snapshots originating
 from the local host are destroyed.  If a comma separated list of hosts are specified, then only destroy snapshots originating from those hosts. Hosts are specified without any domain information, that is, as returned by =hostname -s=.
 
 ** Options
