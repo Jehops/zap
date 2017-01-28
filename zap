@@ -423,11 +423,13 @@ hostptn="^\(\([:alnum:]]\|[[:alnum:]][[:alnum:]\-]*[[:alnum:]]\)\.\)*\([[:alnum:
 ipptn="^\(\([0-9]\|[1-9][0-9]\|1[0-9]\{2\}\|2[0-4][0-9]\|25[0-5]\)\.\)\{3\}\([0-9]\|[1-9][0-9]\|1[0-9]\{2\}\|2[0-4][0-9]\|25[0-5]\)$"
 ttlptn='^[0-9]\{1,4\}[dwmy]$'
 unptn="^[[:alpha:]_][[:alnum:]_-]\{0,31\}$"
+readonly version=0.6.5
 zptn="@ZAP_(${hn})_..*--[0-9]{1,4}[dwmy]" # extended re
 
 case $1 in
     snap|snapshot) shift; snap_parse "$@" ;;
     rep|replicate) shift; rep_parse  "$@" ;;
     destroy)       shift; destroy    "$@" ;;
-    *)             help                   ;;
+    -v|-version|--version) echo "$version" > /dev/stderr ;;
+    *)             usage "${0##*/}: missing or unknown subcommand -- $1" ;;
 esac
