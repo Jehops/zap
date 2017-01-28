@@ -111,15 +111,63 @@ ttl2s () {
     echo "$1" | sed 's/d/*86400/;s/w/*604800/;s/m/*2592000/;s/y/*31536000/' | bc
 }
 
-val_rdest () {
-    un=$(echo "$1"      | cut -s -d'@' -f1) # extract username
-    rest=$(echo "$1"    | cut    -d'@' -f2) # everything but username
-    host=$(echo "$rest" | cut -s -d':' -f1) # host or ip
-    ds=$(echo "$rest"   | cut -s -d":" -f2) # dataset
+usage () {
+    echo "$*" > /dev/stderr
+    cat <<EOF > /dev/stderr
+usage:
+   ${0##*/} snap|snapshot [-dLSv] TTL [[-r] dataset]...
+   ${0##*/} rep|replicate [-dLSv] [[user@]host:parent_dataset
+                               [-r] dataset [[-r] dataset]...]
+   ${0##*/} destroy [-dlsv] [host[,host]...]
+   ${0##*/} -v|-version|--version
 
-    ([ -z "$un" ] || echo "$un" | grep -q "$unptn") && \
-        echo "$host" | grep -q "$hostptn\|$ipptn" && \
-        echo "$ds" | grep -q '[^\0]\+'
+EOF
+    exit 0
+}
+
+val_dest () {
+    case $1 in
+        *:*) # remote
+            #d_type=r
+            un=$(echo "$1"      | cut -s -d'@' -f1) # extract username
+            rest=$(echo "$1"    | cut    -d'@' -f2) # everything but username
+            host=$(echo "$rest" | cut -s -d':' -f1) # host or ip
+            ds=$(echo "$rest"   | cut -s -d":" -f2) # dataset
+
+            ([ -z "$un" ] || echo "$un" | grep -q "$unptn") && \
+                echo "$host" | grep -q "$hostptn\|$ipptn" && \
+                echo "$ds" | grep -q '[^\0]\+'
+            ;;
+        *)
+            return 1
+            ;;
+        # /*) # file
+        #     #d_type=f
+        #     if ! pathchk -pP -- "$1"; then
+        #         "Invalid destination: $1"
+        #         return 1
+        #     elif [ -e "$1" ]; then
+        #         warn "File destination exists."
+        #         return 1
+        #     elif ! [ -d "${1%[^/]*}" ]; then
+        #         warn "Directory ${1%[^/]*} does not exist."
+        #         return 1
+        #     elif ! [ -w "${1%[^/]*}" ]; then
+        #         warn "Directory ${1%[^/]*} is not writable."
+        #         return 1
+        #     fi
+        #     return 0
+        #     ;;
+        # *)
+        #     #d_type=l
+        #     if ! pathchk -pP -- "/$1"; then
+        #         "Invalid destination: $1"
+        #         return 1
+        #     else
+        #         return 0
+        #     fi
+        #     ;;
+    esac
 }
 
 warn () {
