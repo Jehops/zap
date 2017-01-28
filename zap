@@ -179,12 +179,12 @@ time could not be determined."
     done
 }
 
-# rep_parse [-dSv] [remote_dest [[-r] dataset [[-r] dataset]...]
+# rep_parse [-dLSv] [destination [-r] dataset [[-r] dataset]...]
 rep_parse () {
     while getopts ":dLSv" opt; do
         case $opt in
             d)  d_opt='-d'        ;;
-            S)  L_opt=1           ;;
+            L)  L_opt=1           ;;
             S)  S_opt=1           ;;
             v)  v_opt='-v'        ;;
             \?) fatal "Invalid rep_parse() option -$OPTARG." ;;
@@ -195,16 +195,16 @@ rep_parse () {
     [ -n "$v_opt" ] && printf "%s\nReplicating...\n" "$(date)"
     if [ -z "$*" ]; then # use zap:rep property to replicate
         for f in $(zfs list -H -o name -t volume,filesystem); do
-            rdest=$(zfs get -H -o value zap:rep "$f")
-            rep "$f" "$rdest"
+            dest=$(zfs get -H -o value zap:rep "$f")
+            rep "$f" "$dest"
         done
     else # use arguments to replicate
-        rdest="$1"; shift
+        dest="$1"; shift
         while [ "$#" -gt 0 ]; do
             OPTIND=1
             while getopts ":r:" opt; do
                 case $opt in
-                    r)  rep -r "$OPTARG" "$rdest" ;;
+                    r)  rep -r "$OPTARG" "$dest" ;;
                     \?) fatal "Invalid rep_parse() option -$OPTARG" ;;
                     :)  fatal "rep_parse() option -$OPTARG requires an \
 argument." ;;
@@ -213,14 +213,14 @@ argument." ;;
             shift $(( OPTIND - 1 ))
 
             if [ "$#" -gt 0 ]; then
-                rep "$1" "$rdest"
+                rep "$1" "$dest"
                 shift
             fi
         done
     fi
 }
 
-# rep [-r] data_set remote_dest
+# rep [-r] dataset destination
 rep () {
     OPTIND=1
     while getopts ":r" opt; do
@@ -233,21 +233,21 @@ rep () {
 
     # Do not quote $d_opt, but ensure it does not contain spaces.
     if ! pool_ok $d_opt "${1%%/*}"; then
-        warn "DID NOT replicate $1 because of pool state!"
+        warn "DID NOT replicate $1 because of pool state."
     elif [ -n "$S_opt" ] && pool_scrub "${1%%/*}"; then
         warn "DID NOT replicate $1 because '-S' was supplied and the pool is \
-being scrubbed!"
+being scrubbed."
     elif [ -n "$L_opt" ] && pool_scrub "${1%%/*}"; then
         warn "DID NOT replicate $1 because '-L' was supplied and the pool has \
-a resilver in progress!"
+a resilver in progress."
     elif ! zfs list -H -o name -t volume,filesystem "$1" \
            > /dev/null 2>&1; then
         warn "Dataset $1 does not exist."
         warn "Failed to replicate $1."
-    elif ! val_rdest "$2"; then
-        trdest=$(echo "$2" | tr '[:upper:]' '[:lower:]')
-        if [ "$trdest" != '-' ] && [ "$trdest" != 'off' ]; then
-            warn "Invalid remote replication location, $trdest."
+    elif ! val_dest "$2"; then
+        tdest=$(echo "$2" | tr '[:upper:]' '[:lower:]')
+        if [ "$tdest" != '-' ] && [ "$tdest" != 'off' ]; then
+            warn "Invalid remote replication location, $tdest."
             warn "Failed to replicate $1."
         fi
     elif ! lsnap=$(zfs list -rd1 -tsnap -o name -s creation "$1" \
@@ -255,6 +255,7 @@ a resilver in progress!"
          [ -z "$lsnap" ]; then
          warn "Failed to find the newest local snapshot for $1."
     else
+        #if [ "$d_type" = 'r' ]; then
         sshto=$(echo "$2" | cut -d':' -f1)
         rloc=$(echo "$2" | cut -d':' -f2)
         l_ts=$(ss_ts "$(ss_st "$lsnap")")
@@ -268,10 +269,10 @@ $rloc/$fs 2>/dev/null | grep @ZAP_${hn}_ | tail -1 | sed 's/^.*@/@/'")
             # $r_opt may by empty, so do not quote it, but ensure it never
             # contains whitespace.
             [ -n "$v_opt" ] && \
-                echo "zfs send -p $r_opt $lsnap | ssh $sshto \"zfs recv -dFu \
-$v_opt $rloc\""
+                echo "zfs send -p $r_opt $lsnap | ssh $sshto \"zfs recv \
+-Fu $v_opt -d $rloc\""
             if zfs send -p $r_opt "$lsnap" | \
-                    ssh "$sshto" "zfs recv -dFu $v_opt $rloc"; then
+                    ssh "$sshto" "zfs recv -Fu $v_opt -d $rloc"; then
                 [ -n "$v_opt" ] && \
                     echo "zfs bookmark $lsnap $(echo "$lsnap" | sed 's/@/#/')"
                 zfs bookmark "$lsnap" \
