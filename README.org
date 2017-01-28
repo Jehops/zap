@@ -11,28 +11,28 @@
 ** Synopsis
    =% zap snap|snapshot [-dLSv] TTL [[-r] dataset]...=
 
-   =% zap rep|replicate [-dLSv] [[user@host:parent_dataset [-r] dataset [[-r] dataset]...]=
+   =% zap rep|replicate [-dLSv] [[user@]host:parent_dataset [-r] dataset [[-r] dataset]...]=
 
    =% zap destroy [-dlsv] [host[,host]...]=
 ** Subcommands
-   snap|snapshot
+   =snap= | =snapshot=
 
-   Use the =snap= subcommand to create snapshots that will expire after =TTL= (time to live) has elapsed.  An expired snapshot will be destroyed the next time =zap destroy= is run.  =TTL= takes the form [0-9]{1,4}[dwmy].  That is, one to four digits followed by a character to represent the time unit
+   Use the =snap= subcommand to create snapshots that will expire after =TTL= (time to live) has elapsed.  An expired snapshot will be destroyed the next time =zap destroy= is run.  =TTL= takes the form =[0-9]{1,4}[dwmy]=.  That is, one to four digits followed by a character to represent the time unit
 (day, week, month, or year). If datasets are not not supplied on the command line, snapshots will be created for datasets with the property =zap:snap= set to 'on'.
 
-   rep|replicate
+   =rep= | =replicate=
 
    Use the =rep= subcommand to replicate datasets.  If a destination and datasets are not supplied on the command line, datasets with a destination set in the =zap:rep= user property are replicated.
 
 
-   destroy
+   =destroy=
 
    Use the =destroy= to subcommand to destroy expired snapshots.  By default, only snapshots originating
 from the local host are destroyed.  If a comma separated list of hosts are specified, then only destroy snapshots originating from those hosts. Hosts are specified without any domain information, that is, as returned by =hostname -s=.
 
 ** Options
 
-   =-v=|=-version=|=--version= Show the version.
+   =-v= | =-version= | =--version= Show the version.
 
 *** Subcommand options
 
@@ -52,10 +52,6 @@ and =rep= subcommands.
 
     =-v=  Be verbose.
 
-    =-d=  Destroy when the pool is in a DEGRADED state.
-
-    =-v=  Be verbose.
-
 ** Examples
    Create snapshots that will expire after 3 weeks.
 #+BEGIN_SRC sh
@@ -72,13 +68,13 @@ and =rep= subcommands.
    % zap snap -dv 3w -r tank -r zroot/var zroot/usr/home/nox
 #+END_SRC
 
-   Create snapshots for datasets with the zap:snap property set to on.
+   Create snapshots for datasets with the =zap:snap= property set to on.
 #+BEGIN_SRC sh
    % zap rep 1d
    % zap rep 3w
 #+END_SRC
 
-   Replicate datasets (recursively for zroot/ROOT) from the host phe to the host bravo.
+   Replicate datasets (recursively for zroot/ROOT) to the remote host bravo, under the rback/phe dataset.
 #+BEGIN_SRC sh
    % zap rep zap@bravo:rback/phe -r zroot/ROOT zroot/usr/home/jrm
 #+END_SRC
@@ -94,7 +90,7 @@ and =rep= subcommands.
    % zap destroy -v awarnach,gly
 #+END_SRC
 
-     Automate management of rolling snapshots for datasets with the zap:snap property set and replication for datasets with the =zap:rep= property set using these crontab(5) entries.  Taking snapshots is normally cheap, so do it often. Destroying snapshots can thrash disks, so only do it every 24 hours.
+     Automate management of rolling snapshots for datasets with the =zap:snap= property set and replication for datasets with the =zap:rep= property set using these crontab(5) entries.  Taking snapshots is normally cheap, so do it often. Destroying snapshots can thrash disks, so only do it every 24 hours.
 
      Note:
      - This example uses the system crontab file, so an extra =who= field is included.
