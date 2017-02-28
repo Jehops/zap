@@ -3,7 +3,6 @@
 
    zap plays nice with manually created snapshots or snapshots from other tools.  It will only operate on snapshots it creates.
 
-   If the pool is in a DEGRADED state, then snapshots will not be created, replicated, or destroyed unless =-d= is used.  Snapshots are still created and replicated, but not destroyed when the pool has a resilver in progress or is being scrubbed.  Use =-L=, =-l=, =-S=, and =-s= to change this behaviour.   
 ** Synopsis
    =% zap snap|snapshot [-dLSv] TTL [[-r] dataset]...=
 
@@ -88,7 +87,7 @@ and =rep= subcommands.
    % zap destroy -v awarnach,gly
 #+END_SRC
 
-     Crontab entries for rolling, remotely-replicated snapshots.
+     Crontab entries for rolling snapshots and remote replication.
 
      Note:
      - Refer to http://ftfl.ca/blog/2016-12-27-zfs-replication.html for a detailed description of a backup and replication strategy.
