@@ -1,7 +1,3 @@
-* zap -- Maintain and replicate ZFS snapshots [1]
-
-** WARNING: The command line arguments and the format of zap snapshot names changed in version 0.6.0!  The name change means you will have to manually clean up old zap snapshots.
-** WARNING: The 'zap rep' arguments changed in version 0.6.4.
 ** Overview
    zap automates the management of zfs snapshots.  With a few, simple crontab entries, it can be used to create a comprehensive zfs backup system.  There are no configuration files.  All parameters are supplied on the command line or in zfs properties and all snapshot information is stored in snapshot names.
 
@@ -14,6 +10,8 @@
    =% zap rep|replicate [-dLSv] [[user@]host:parent_dataset [-r] dataset [[-r] dataset]...]=
 
    =% zap destroy [-dlsv] [host[,host]...]=
+
+   =% zap -v=
 ** Subcommands
    =snap= | =snapshot=
 
@@ -90,9 +88,13 @@ and =rep= subcommands.
    % zap destroy -v awarnach,gly
 #+END_SRC
 
-     Automate management of rolling snapshots for datasets with the =zap:snap= property set and replication for datasets with the =zap:rep= property set using these crontab(5) entries.  Taking snapshots is normally cheap, so do it often. Destroying snapshots can thrash disks, so only do it every 24 hours.
+     Crontab entries for rolling, remotely-replicated snapshots.
 
      Note:
+     - Refer to http://ftfl.ca/blog/2016-12-27-zfs-replication.html for a detailed description of a backup and replication strategy.
+     - Snapshots are created for datasets with the =zap:snap= property set to 'on'.
+     - Datasets with the =zap:rep= property set are replicated.
+     - Taking snapshots is normally cheap, so do it often. Destroying snapshots can thrash disks, so only do it every 24 hours.
      - This example uses the system crontab file, so an extra =who= field is included.
      - Appropriate zfs permissions must be set for the =zap= user.
      - Cron must be aware of the full path to =zap=, since the full path is not used in these entries.
@@ -115,9 +117,6 @@ SHELL=/bin/sh
 # replicate datasets
 54	*/1	*	*	*	zap     zap rep
 #+END_SRC
-** See also
-   Refer to http://ftfl.ca/blog/2016-12-27-zfs-replication.html for a
-   description of a replication strategy.
 ** Authors and Contributors
    - Joseph Mingrone <jrm@ftfl.ca>
    - Tobias Kortkamp <t@tobik.me>
