@@ -101,6 +101,7 @@ and =rep= subcommands.
 
 #+BEGIN_SRC sh
 SHELL=/bin/sh
+PATH=/etc:/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/bin
 
 #minute	hour	mday	month	wday	who	command
 
