@@ -11,7 +11,7 @@
 
    =% zap destroy [-dlsv] [host[,host]...]=
 
-   =% zap -v=
+   =% zap -v | -version | --version=
 ** Subcommands
    =snap= | =snapshot=
 
