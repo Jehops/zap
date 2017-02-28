@@ -100,8 +100,6 @@ and =rep= subcommands.
      - Cron must be aware of the full path to =zap=, since the full path is not used in these entries.
 
 #+BEGIN_SRC sh
-$ cat /etc/crontab
-
 SHELL=/bin/sh
 
 #minute	hour	mday	month	wday	who	command
