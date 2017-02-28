@@ -126,4 +126,4 @@ SHELL=/bin/sh
 
 -----
 
-[1] zap was influenced by zfSnap, which is under a BEER-WARE license.  We owe the author a beer.
+zap was influenced by zfSnap, which is under a BEER-WARE license.  We owe the author a beer.
