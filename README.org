@@ -67,8 +67,8 @@ and =rep= subcommands.
 
    Create snapshots for datasets with the =zap:snap= property set to on.
 #+BEGIN_SRC sh
-   % zap rep 1d
-   % zap rep 3w
+   % zap snap 1d
+   % zap snap 3w
 #+END_SRC
 
    Replicate datasets (recursively for zroot/ROOT) to the remote host bravo, under the rback/phe dataset.
