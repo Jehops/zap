@@ -71,7 +71,7 @@ and =rep= subcommands.
    % zap snap 3w
 #+END_SRC
 
-   Replicate datasets (recursively for zroot/ROOT) to the remote host bravo, under the rback/phe dataset.
+   Replicate datasets (recursively for zroot/ROOT) to the remote host bravo, under the rback/phe dataset.  If you use a non-default ssh port, specify it in ~/.ssh/config.
 #+BEGIN_SRC sh
    % zap rep zap@bravo:rback/phe -r zroot/ROOT zroot/usr/home/jrm
 #+END_SRC
