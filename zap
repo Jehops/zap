@@ -460,12 +460,13 @@ a resilver in progress!"
 
 os=$(uname)
 case $os in
-    # Needs testing on Linux
-    #'Darwin'|'FreeBSD'|'Linux'|'SunOS') ;;
+    # Needs testing
+    # 'Darwin'|'Linux'|'SunOS') ;;
     'FreeBSD') ;;
     *)
-        fatal "${0##*/} has not be tested on $os.
-       Feedback and patches are welcome." ;;
+        warn "${0##*/} has not be sufficiently tested on $os.
+      Feedback and patches are welcome.
+" ;;
 esac
 
 date=$(date '+%Y-%m-%dT%H:%M:%S%z' | sed 's/+/p/')
