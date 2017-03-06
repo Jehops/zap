@@ -252,7 +252,12 @@ rep_parse () {
             OPTIND=1
             while getopts ":r:" opt; do
                 case $opt in
-                    r)  rep_rec "$OPTARG" "$dest" ;;
+                    r)
+                        for f in $(zfs list -H -o name -t filesystem,volume \
+                                       -r "$OPTARG"); do
+                            rep "$f" "$dest"
+                        done
+                        ;;
                     \?) fatal "Invalid rep_parse() option -$OPTARG" ;;
                     :)  fatal "rep_parse() option -$OPTARG requires an \
 argument." ;;
@@ -266,14 +271,6 @@ argument." ;;
             fi
         done
     fi
-}
-
-## recursively replicate
-## rep_rec filesystem destination
-rep_rec () {
-    for f in $(zfs list -H -o name -t filesystem,volume -r "$1"); do
-        rep "$f" "$dest"
-    done
 }
 
 # rep dataset destination
