@@ -118,6 +118,7 @@ PATH=/etc:/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/bin
 ** Authors and Contributors
    - Joseph Mingrone <jrm@ftfl.ca>
    - Tobias Kortkamp <t@tobik.me>
+   - David Samms <dsamms@nw-ds.com>
 ** License
    zap is released under a BSD 2-Clause License.  Refer to the header of each
    source file for details.
