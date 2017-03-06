@@ -252,7 +252,7 @@ rep_parse () {
             OPTIND=1
             while getopts ":r:" opt; do
                 case $opt in
-                    r)  rep -r "$OPTARG" "$dest" ;;
+                    r)  rep_rec "$OPTARG" "$dest" ;;
                     \?) fatal "Invalid rep_parse() option -$OPTARG" ;;
                     :)  fatal "rep_parse() option -$OPTARG requires an \
 argument." ;;
@@ -268,16 +268,24 @@ argument." ;;
     fi
 }
 
-# rep [-r] dataset destination
-rep () {
-    OPTIND=1
-    while getopts ":r" opt; do
-        case $opt in
-            r)  r_opt='-R' ;;
-            \?) fatal "Invalid rep() option -$OPTARG" ;;
-        esac
+## recursively replicate
+## rep_rec filesystem destination
+rep_rec () {
+    for f in $(zfs list -H -o name -t filesystem,volume -r "$1"); do
+        rep "$f" "$dest"
     done
-    shift $(( OPTIND - 1 ))
+}
+
+# rep dataset destination
+rep () {
+    # OPTIND=1
+    # while getopts ":r" opt; do
+    #     case $opt in
+    #         r)  r_opt='-R' ;;
+    #         \?) fatal "Invalid rep() option -$OPTARG" ;;
+    #     esac
+    # done
+    # shift $(( OPTIND - 1 ))
 
     # Do not quote $d_opt, but ensure it does not contain spaces.
     if ! pool_ok $d_opt "${1%%/*}"; then
@@ -314,12 +322,10 @@ $rloc/$fs 2>/dev/null | grep @ZAP_${hn}_ | tail -1 | sed 's/^.*@/@/'")
         if [ -z "$rsnap" ]; then
             [ -n "$v_opt" ] && \
                 echo "No remote snapshots found. Sending full stream."
-            # $r_opt may by empty, so do not quote it, but ensure it never
-            # contains whitespace.
             [ -n "$v_opt" ] && \
-                echo "zfs send -p $r_opt $lsnap | ssh $sshto \"zfs recv \
+                echo "zfs send -p $lsnap | ssh $sshto \"zfs recv \
 -Fu $v_opt -d $rloc\""
-            if zfs send -p $r_opt "$lsnap" | \
+            if zfs send -p "$lsnap" | \
                     ssh "$sshto" "zfs recv -Fu $v_opt -d $rloc"; then
                 [ -n "$v_opt" ] && \
                     echo "zfs bookmark $lsnap $(echo "$lsnap" | sed 's/@/#/')"
@@ -350,9 +356,9 @@ intermediary snapshots will not be sent."
                 else
                     if echo "$sp" | grep -q '@'; then i='-I'; else i='-i'; fi
                     [ -n "$v_opt" ] && \
-                        echo "zfs send $r_opt $i $sp $lsnap | ssh $sshto \"zfs \
+                        echo "zfs send $i $sp $lsnap | ssh $sshto \"zfs \
 recv -du $v_opt $rloc\""
-                    if zfs send $r_opt $i "$sp" "$lsnap" | \
+                    if zfs send $i "$sp" "$lsnap" | \
                             ssh "$sshto" "zfs recv -du $v_opt $rloc"; then
                         [ -n "$v_opt" ] && \
                             echo "zfs bookmark $lsnap $(echo "$lsnap" | sed \
@@ -369,7 +375,7 @@ recv -du $v_opt $rloc\""
                     fi
                 fi
             else
-                [ -n "$v_opt" ] && echo "Nothing new to replicate."
+                [ -n "$v_opt" ] && echo "$1: Nothing new to replicate."
             fi
         fi
     fi
