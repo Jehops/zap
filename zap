@@ -116,7 +116,7 @@ usage () {
     cat <<EOF > /dev/stderr
 usage:
    ${0##*/} snap|snapshot [-dLSv] TTL [[-r] dataset]...
-   ${0##*/} rep|replicate [-dLSv] [[user@]host:parent_dataset
+   ${0##*/} rep|replicate [-dFLSv] [[user@]host:parent_dataset
                                [-r] dataset [[-r] dataset]...]
    ${0##*/} destroy [-dlsv] [host[,host]...]
    ${0##*/} -v|-version|--version
@@ -229,12 +229,13 @@ time could not be determined."
 
 # rep_parse [-dLSv] [destination [-r] dataset [[-r] dataset]...]
 rep_parse () {
-    while getopts ":dLSv" opt; do
+    while getopts ":dFLSv" opt; do
         case $opt in
             d)  d_opt='-d'        ;;
             L)  L_opt=1           ;;
             S)  S_opt=1           ;;
             v)  v_opt='-v'        ;;
+            F)  F_opt='-F'        ;;
             \?) fatal "Invalid rep_parse() option -$OPTARG." ;;
         esac
     done
@@ -328,6 +329,14 @@ $rloc/$fs 2>/dev/null | grep @ZAP_${hn}_ | tail -1 | sed 's/^.*@/@/'")
                     echo "zfs bookmark $lsnap $(echo "$lsnap" | sed 's/@/#/')"
                 zfs bookmark "$lsnap" \
                     "$(echo "$lsnap" | sed 's/@/#/')"
+                if [ "$(zfs get -H -o value canmount "$1")" = 'on' ]; then
+                    if ssh "$sshto" "zfs set canmount=noauto $rloc/$fs"; then
+                        [ -n "$v_opt" ] && \
+                            echo "Set canmount=noauto for $sshto:$rloc/$fs";
+                    else
+                        warn "Failed to set canmount=noauto for $sshto:$rloc/$fs"
+                    fi
+                fi
             else
                 warn "Failed to replicate $lsnap to $sshto:$rloc"
             fi
@@ -354,9 +363,9 @@ intermediary snapshots will not be sent."
                     if echo "$sp" | grep -q '@'; then i='-I'; else i='-i'; fi
                     [ -n "$v_opt" ] && \
                         echo "zfs send $i $sp $lsnap | ssh $sshto \"zfs \
-recv -du $v_opt $rloc\""
+recv -du $F_opt $v_opt $rloc\""
                     if zfs send $i "$sp" "$lsnap" | \
-                            ssh "$sshto" "zfs recv -du $v_opt $rloc"; then
+                            ssh "$sshto" "zfs recv -du $F_opt $v_opt $rloc"; then
                         [ -n "$v_opt" ] && \
                             echo "zfs bookmark $lsnap $(echo "$lsnap" | sed \
 's/@/#/')"
