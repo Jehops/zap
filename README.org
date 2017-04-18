@@ -6,7 +6,7 @@
 ** Synopsis
    =% zap snap|snapshot [-dLSv] TTL [[-r] dataset]...=
 
-   =% zap rep|replicate [-dLSv] [[user@]host:parent_dataset [-r] dataset [[-r] dataset]...]=
+   =% zap rep|replicate [-dFLSv] [[user@]host:parent_dataset [-r] dataset [[-r] dataset]...]=
 
    =% zap destroy [-dlsv] [host[,host]...]=
 
@@ -19,8 +19,7 @@
 
    =rep= | =replicate=
 
-   Use the =rep= subcommand to replicate datasets.  If a destination and datasets are not supplied on the command line, datasets with a destination set in the =zap:rep= user property are replicated.
-
+   Use the =rep= subcommand to replicate datasets.  If a destination and datasets are not supplied on the command line, datasets with a destination set in the =zap:rep= user property are replicated.  If the =canmount= property of the local dataset is set to 'on', after replication an attempt is made to set =canmount= to 'noauto' on the remote side.  This is done to prevent mountpoint collisions.
 
    =destroy=
 
@@ -34,6 +33,8 @@ from the local host are destroyed.  If a comma separated list of hosts are speci
 *** Subcommand options
 
     =-d=  Operate on snapshots, even when the pool is in a DEGRADED state.
+
+    =-F=  Supply =-F= to =zfs receive=, which destroys remote changes that do not exist on the sending side.
 
     =-L=  Do not operate on snapshots if the pool has a resilver in progress.  This is the default for the =destroy= subcommand.
 
