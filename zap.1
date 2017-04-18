@@ -1,0 +1,228 @@
+.Dd March 06, 2017
+.Dt ZAP 1
+.Os
+.Sh NAME
+.Nm zap
+.Nd "maintain and replicate ZFS snapshots"
+.Sh SYNOPSIS
+.Nm
+.Ar snap Ns | Ns Ar snapshot
+.Op Fl dLSv
+.Ar TTL
+.Oo Op Fl r
+.Ar dataset Oc Ns ...
+.Nm
+.Ar rep Ns | Ns Ar replicate
+.Op Fl dFLSv
+.Oo Op Ar user Ns @ Ns
+.Ar host Ns : Ns
+.Ar parent_dataset
+.Op Fl r
+.Ar dataset
+.Oo Op Fl r
+.Ar dataset Oc Ns ... Oc
+.Nm
+.Ar destroy
+.Op Fl dlsv
+.Oo Ar host
+.Oo , Ns Ar host
+.Oc Ns ... Oc
+.Nm
+.Fl v Ns | Ns Fl version Ns | Ns Fl -version
+.Sh DESCRIPTION
+.Nm
+automates the management of zfs snapshots.  With a few, simple crontab entries,
+it can be used to create a comprehensive zfs backup system.  There are no
+configuration files.  All parameters are supplied on the command line or in zfs
+properties and all snapshot information is stored in snapshot names.
+.Pp
+.Nm
+plays nice with manually-created snapshots or snapshots from other tools.  It will only operate on snapshots it creates.
+.Pp
+If the pool is in a DEGRADED state, then snapshots will not be created,
+replicated, or destroyed unless
+.Fl d
+is used.  Snapshots are still created and replicated, but not destroyed when the pool has a resilver in progress or is being scrubbed.  Use
+.Fl L ,
+.Fl l ,
+.Fl S ,
+and
+.Fl s
+to change this behaviour.
+.Pp
+.Sh SUBCOMMANDS
+.Ss Ar snap Ns | Ns Ar snapshot
+Use the
+.Ar snap
+subcommand to create snapshots that will expire after
+.Ar TTL
+(time to live) has elapsed.  An expired snapshot will be destroyed the next time
+.Nm
+.Ar destroy
+is run.
+.Ar TTL
+takes the form
+.Bo 0-9 Bc Ns Bro 1,4 Brc Ns Bo dwmy Bc Ns .
+That is, one to four digits followed by a character to represent the time unit
+(day, week, month, or year). If datasets are not not supplied on the command
+line, snapshots will be created for datasets with the property
+.Sy zap:snap
+set to
+.Sy on Ns .
+.Pp
+.Ss Ar rep Ns | Ns Ar replicate
+Use the
+.Ar rep
+subcommand to replicate datasets.  If a destination and datasets are not supplied on the command line, datasets with a destination set in the
+.Sy zap:rep
+user property are replicated.  If the
+.Sy canmount
+property of the local dataset is set to
+.Sy on Ns ,
+after replication an attempt is made to set
+.Sy canmount
+to
+.Sy noauto
+on the remote side.  This is done to prevent mountpoint collisions.
+.Pp
+.Ss Ar destroy
+Use the
+.Ar destroy
+subcommand to destroy expired snapshots.  By default, only snapshots originating
+from the local host are destroyed.  If a comma separated list of hosts are
+specified, then only destroy snapshots originating from those hosts. Hosts are
+specified without any domain information, that is, as returned by
+.Ic hostname -s Ns .
+.Sh OPTIONS
+.Bl -tag -width "12345678"
+.It Fl d
+Operate on snapshots, even when the pool is in a DEGRADED state.
+.It Fl F
+Supply
+.Ic -F
+to
+.Ar zfs receive Ns
+, which destroys remote changes that do not exist on the sending side.
+.It Fl L
+Do not operate on snapshots if the pool has a resilver in progress.  This is the default for the
+.Ar destroy
+subcommand.
+.It Fl l
+Operate on snapshots, even if the pool has a resilver in progress.  This is the default for the
+.Ar snap
+and
+.Ar rep
+subcommands.
+.It Fl S
+Do not operate on snapshots if the pool is being scrubbed.  This is the default for the
+.Ar destroy
+subcommand.
+.It Fl s
+Operate on snapshots, even if the pool is being scrubbed.  This is the default for the
+.Ar snap
+and
+.Ar rep
+subcommands.
+.It Fl r
+Recursively create or replicate snapshots of all descendents.
+.It Fl v
+Be verbose.
+.El
+.Sh EXAMPLES
+Create snapshots that will expire after three weeks.
+.Bd -literal -offset indent
+zap snap 3w zroot/usr/home/nox zroot/var
+.Ed
+.Pp
+Recursively create snapshots that will expire after one day.  Be verbose.
+.Bd -literal -offset indent
+zap snap -v 1d -r zroot/usr/home
+.Ed
+.Pp
+Create snapshots (recursively for tank and zroot/var) even if the pool is 
+DEGRADED.  The snapshots will expire after three weeks.  Be verbose.
+.Bd -literal -offset indent
+zap snap -dv 3w -r tank -r zroot/var zroot/usr/home/nox
+.Ed
+.Pp
+Create snapshots for datasets with the
+.Sy zap:snap
+property set to
+.Sy on Ns .
+.Bd -literal -offset indent
+zap snap 1d
+zap snap 3w
+.Ed
+.Pp
+Replicate datasets (recursively for zroot/ROOT) to the remote host bravo, under
+the rback/phe dataset.  If you use a non-default ssh port, specify it in
+~/.ssh/config.
+.Bd -literal -offset indent
+zap rep zap@bravo:rback/phe -r zroot/ROOT zroot/usr/home/jrm
+.Ed
+.Pp
+Destroy expired snapshots.  Be verbose.
+.Bd -literal -offset indent
+zap destroy -v
+.Ed
+.Pp
+Destroy expired snapshots that originated on either the host awarnach or the
+host gly. Be verbose.
+.Bd -literal -offset indent
+zap destroy -v awarnach,gly
+.Ed
+.Pp
+Automate management of rolling snapshots for datasets with the
+.Sy zap:snap
+property set and replication for datasets with the
+.Sy zap:rep
+property set using these
+.Xr crontab 5
+entries.  Taking snapshots is normally cheap, so do it often. Destroying
+snapshots can thrash disks, so only do it every 24 hours.
+.Pp
+Note:
+.Bl -bullet -compact -offset 1
+.It
+This example uses the system crontab file, so an extra
+.Sy who
+field is included.
+.It
+Appropriate zfs permissions must be set for the
+.Sy zap
+user.
+.It
+.Xr cron 8
+must be aware of the full path to
+.Nm zap Ns
+, since the full path is not used in these entries.
+.El
+.Bd -literal -offset indent
+#minute	hour	mday	month	wday	who	command
+
+# take snapshots
+*/5	*	*	*	*	zap	zap snap 1d
+14	*/4	*	*	*	zap	zap snap 1w
+14	00	*	*	1	zap	zap snap 1m
+
+# destroy snapshots
+44	04	*	*	*	root	zap destroy
+
+# replicate datasets
+54	*/1	*	*	*	zap     zap rep
+.Ed
+.Sh SEE ALSO
+.Bl -tag -compact -width "12345678"
+.It Lk http://github.com/jehops/zap GitHub Page
+.It Lk http://ftfl.ca/blog/2016-12-27-zfs-replication.html Replication strategy
+.It Lk http://www.zfsnap.org/ Related tool
+.It Xr crontab 5 , Xr zfs 8 , Xr zpool 8
+.El
+.Sh AUTHORS AND CONTRIBUTORS
+.Bl -tag -compact -width "12345678"
+.It An Joseph Mingrone Mt jrm@ftfl.ca
+.It An Tobias Kortkamp Mt t@tobik.me
+.It An David Samms Mt dsamms@nw-ds.com
+.El
+.Sh BUGS
+.Lk http://github.com/jehops/zap/issues Issue tracker
