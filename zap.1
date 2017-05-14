@@ -7,13 +7,13 @@
 .Sh SYNOPSIS
 .Nm
 .Ar snap Ns | Ns Ar snapshot
-.Op Fl dLSv
+.Op Fl DLSv
 .Ar TTL
 .Oo Op Fl r
 .Ar dataset Oc Ns ...
 .Nm
 .Ar rep Ns | Ns Ar replicate
-.Op Fl dFLSv
+.Op Fl DFLSv
 .Oo Op Ar user Ns @ Ns
 .Ar host Ns : Ns
 .Ar parent_dataset
@@ -23,7 +23,7 @@
 .Ar dataset Oc Ns ... Oc
 .Nm
 .Ar destroy
-.Op Fl dlsv
+.Op Fl Dlsv
 .Oo Ar host
 .Oo , Ns Ar host
 .Oc Ns ... Oc
@@ -31,18 +31,20 @@
 .Fl v Ns | Ns Fl version Ns | Ns Fl -version
 .Sh DESCRIPTION
 .Nm
-automates the management of zfs snapshots.  With a few, simple crontab entries,
+automates the management of zfs snapshots.  With a few simple crontab entries,
 it can be used to create a comprehensive zfs backup system.  There are no
 configuration files.  All parameters are supplied on the command line or in zfs
 properties and all snapshot information is stored in snapshot names.
 .Pp
 .Nm
-plays nice with manually-created snapshots or snapshots from other tools.  It will only operate on snapshots it creates.
+plays nice with manually-created snapshots or snapshots from other tools.  It
+will only operate on snapshots it creates.
 .Pp
-If the pool is in a DEGRADED state, then snapshots will not be created,
-replicated, or destroyed unless
-.Fl d
-is used.  Snapshots are still created and replicated, but not destroyed when the pool has a resilver in progress or is being scrubbed.  Use
+If the pool is in a DEGRADED state, then snapshots will still be created,
+replicated, and destroyed unless
+.Fl D
+is used.  If the pool is being resilvered or scrubbed, then snapshots will still
+created and replicated, but not destroyed.  Use
 .Fl L ,
 .Fl l ,
 .Fl S ,
@@ -73,7 +75,8 @@ set to
 .Ss Ar rep Ns | Ns Ar replicate
 Use the
 .Ar rep
-subcommand to replicate datasets.  If a destination and datasets are not supplied on the command line, datasets with a destination set in the
+subcommand to replicate datasets.  If a destination and datasets are not
+supplied on the command line, datasets with a destination set in the
 .Sy zap:rep
 user property are replicated.  If the
 .Sy canmount
@@ -95,8 +98,8 @@ specified without any domain information, that is, as returned by
 .Ic hostname -s Ns .
 .Sh OPTIONS
 .Bl -tag -width "12345678"
-.It Fl d
-Operate on snapshots, even when the pool is in a DEGRADED state.
+.It Fl D
+Do not operate on snapshots when the pool is in a DEGRADED state.
 .It Fl F
 Supply
 .Ic -F
@@ -104,21 +107,25 @@ to
 .Ar zfs receive Ns
 , which destroys remote changes that do not exist on the sending side.
 .It Fl L
-Do not operate on snapshots if the pool has a resilver in progress.  This is the default for the
+Do not operate on snapshots if the pool has a resilver in progress.  This is the
+default for the
 .Ar destroy
 subcommand.
 .It Fl l
-Operate on snapshots, even if the pool has a resilver in progress.  This is the default for the
+Operate on snapshots, even if the pool has a resilver in progress.  This is the
+default for the
 .Ar snap
 and
 .Ar rep
 subcommands.
 .It Fl S
-Do not operate on snapshots if the pool is being scrubbed.  This is the default for the
+Do not operate on snapshots if the pool is being scrubbed.  This is the default
+for the
 .Ar destroy
 subcommand.
 .It Fl s
-Operate on snapshots, even if the pool is being scrubbed.  This is the default for the
+Operate on snapshots, even if the pool is being scrubbed.  This is the default
+for the
 .Ar snap
 and
 .Ar rep
@@ -139,10 +146,10 @@ Recursively create snapshots that will expire after one day.  Be verbose.
 zap snap -v 1d -r zroot/usr/home
 .Ed
 .Pp
-Create snapshots (recursively for tank and zroot/var) even if the pool is 
-DEGRADED.  The snapshots will expire after three weeks.  Be verbose.
+Create snapshots (recursively for tank and zroot/var), but not if the pool is in
+a DEGRADED state.  The snapshots will expire after three weeks.  Be verbose.
 .Bd -literal -offset indent
-zap snap -dv 3w -r tank -r zroot/var zroot/usr/home/nox
+zap snap -Dv 3w -r tank -r zroot/var zroot/usr/home/nox
 .Ed
 .Pp
 Create snapshots for datasets with the

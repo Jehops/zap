@@ -53,15 +53,15 @@ is_pint () {
     return 0
 }
 
-# pool_ok [-d] pool
-# If the -d option is supplied, consider the DEGRADED state ok.
+# pool_ok [-D] pool
+# If the -D option is supplied, do not consider the DEGRADED state ok.
 pool_ok () {
-    skip="state: \(DEGRADED\|FAULTED\|OFFLINE\|REMOVED\|UNAVAIL\)"
+    skip="state: \(FAULTED\|OFFLINE\|REMOVED\|UNAVAIL\)"
     OPTIND=1
-    while getopts ":d" opt; do
+    while getopts ":D" opt; do
         case $opt in
-            d)  skip=$(echo "$skip" | sed "s/DEGRADED\\\|//") ;;
-            \?) fatal "Invalid pool_ok() option -$OPTARG" ;;
+            D)  skip="state: \(DEGRADED\|FAULTED\|OFFLINE\|REMOVED\|UNAVAIL\)" ;;
+            \?) fatal "Invalid pool_ok() option: -$OPTARG" ;;
         esac
     done
     shift $(( OPTIND - 1 ))
@@ -90,7 +90,7 @@ pool_resilver () {
 }
 
 ss_st () {
-    # Using an extended regexp here, because $hn may contains a list of
+    # Using an extended regexp here, because $hn may contain a list of
     # alternatives like awarnach|bravo|phe.
     echo "$1" | sed -r "s/^.*@ZAP_(${hn})_//;s/--[0-9]{1,4}[dwmy]$//;s/p/+/"
 }
@@ -115,10 +115,10 @@ usage () {
     echo "$*" > /dev/stderr
     cat <<EOF > /dev/stderr
 usage:
-   ${0##*/} snap|snapshot [-dLSv] TTL [[-r] dataset]...
-   ${0##*/} rep|replicate [-dFLSv] [[user@]host:parent_dataset
+   ${0##*/} snap|snapshot [-DLSv] TTL [[-r] dataset]...
+   ${0##*/} rep|replicate [-DFLSv] [[user@]host:parent_dataset
                                [-r] dataset [[-r] dataset]...]
-   ${0##*/} destroy [-dlsv] [host[,host]...]
+   ${0##*/} destroy [-Dlsv] [host[,host]...]
    ${0##*/} -v|-version|--version
 
 EOF
@@ -176,13 +176,13 @@ warn () {
 
 # ==============================================================================
 destroy () {
-    while getopts ":dlsv" opt; do
+    while getopts ":Dlsv" opt; do
         case $opt in
-            d)  d_opt='-d' ;;
+            D)  D_opt='-D' ;;
             l)  l_opt=1    ;;
             s)  s_opt=1    ;;
             v)  v_opt=1    ;;
-            \?) fatal "Invalid destroy() option -$OPTARG" ;;
+            \?) fatal "Invalid destroy() option: -$OPTARG" ;;
         esac
     done
     shift $(( OPTIND - 1 ))
@@ -201,8 +201,8 @@ destroy () {
     for i in $(zfs list -H -t snap -o name); do
         if echo "$i" | grep -E -q "$zptn"; then
             pool="${i%%/*}"
-            # Do not quote $d_opt, but ensure it does not contain spaces.
-            if ! pool_ok $d_opt "$pool"; then
+            # Do not quote $D_opt, but ensure it does not contain spaces.
+            if ! pool_ok $D_opt "$pool"; then
                 warn "Did not destroy $i because of pool state."
             elif [ -z "$s_opt" ] && pool_scrub "$pool"; then
                 warn "Did not destroy $i because $pool is being scrubbed."
@@ -227,16 +227,16 @@ time could not be determined."
     done
 }
 
-# rep_parse [-dLSv] [destination [-r] dataset [[-r] dataset]...]
+# rep_parse [-DLSv] [destination [-r] dataset [[-r] dataset]...]
 rep_parse () {
-    while getopts ":dFLSv" opt; do
+    while getopts ":DFLSv" opt; do
         case $opt in
-            d)  d_opt='-d'        ;;
+            D)  D_opt='-D'        ;;
             L)  L_opt=1           ;;
             S)  S_opt=1           ;;
             v)  v_opt='-v'        ;;
             F)  F_opt='-F'        ;;
-            \?) fatal "Invalid rep_parse() option -$OPTARG." ;;
+            \?) fatal "Invalid rep_parse() option: -$OPTARG." ;;
         esac
     done
     shift $(( OPTIND - 1 ))
@@ -259,7 +259,7 @@ rep_parse () {
                             rep "$f" "$dest"
                         done
                         ;;
-                    \?) fatal "Invalid rep_parse() option -$OPTARG" ;;
+                    \?) fatal "Invalid rep_parse() option: -$OPTARG" ;;
                     :)  fatal "rep_parse() option -$OPTARG requires an \
 argument." ;;
                 esac
@@ -280,13 +280,13 @@ rep () {
     # while getopts ":r" opt; do
     #     case $opt in
     #         r)  r_opt='-R' ;;
-    #         \?) fatal "Invalid rep() option -$OPTARG" ;;
+    #         \?) fatal "Invalid rep() option: -$OPTARG" ;;
     #     esac
     # done
     # shift $(( OPTIND - 1 ))
 
-    # Do not quote $d_opt, but ensure it does not contain spaces.
-    if ! pool_ok $d_opt "${1%%/*}"; then
+    # Do not quote $D_opt, but ensure it does not contain spaces.
+    if ! pool_ok $D_opt "${1%%/*}"; then
         warn "DID NOT replicate $1 because of pool state."
     elif [ -n "$S_opt" ] && pool_scrub "${1%%/*}"; then
         warn "DID NOT replicate $1 because '-S' was supplied and the pool is \
@@ -301,7 +301,7 @@ a resilver in progress."
     elif ! val_dest "$2"; then
         tdest=$(echo "$2" | tr '[:upper:]' '[:lower:]')
         if [ "$tdest" != '-' ] && [ "$tdest" != 'off' ]; then
-            warn "Invalid remote replication location, $tdest."
+            warn "Invalid remote replication location: $tdest."
             warn "Failed to replicate $1."
         fi
     elif ! lsnap=$(zfs list -rd1 -tsnap -o name -s creation "$1" \
@@ -387,15 +387,15 @@ recv -du $F_opt $v_opt $rloc\""
     fi
 }
 
-# snap_parse [-dSv] TTL [[-r] dataset [[-r] dataset]...]
+# snap_parse [-DLSv] TTL [[-r] dataset [[-r] dataset]...]
 snap_parse () {
-    while getopts ":dLSv" opt; do
+    while getopts ":DLSv" opt; do
         case $opt in
-            d)  d_opt='-d'        ;;
+            D)  D_opt='-D'        ;;
             L)  L_opt=1           ;;
             S)  S_opt=1           ;;
             v)  v_opt=1           ;;
-            \?) fatal "Invalid snap_parse() option -$OPTARG." ;;
+            \?) fatal "Invalid snap_parse() option: -$OPTARG." ;;
         esac
     done
     shift $(( OPTIND - 1 ))
@@ -419,7 +419,7 @@ snap_parse () {
             while getopts ":r:" opt; do
                 case $opt in
                     r)  snap -r "$OPTARG" ;;
-                    \?) fatal "Invalid snap_parse() option -$OPTARG" ;;
+                    \?) fatal "Invalid snap_parse() option: -$OPTARG" ;;
                     :)  fatal "snap_parse: Option -$OPTARG requires an \
 argument." ;;
                 esac
@@ -441,13 +441,13 @@ snap () {
     while getopts ":r" opt; do
         case $opt in
             r)  r_opt='-r' ;;
-            \?) fatal "Invalid snap() option -$OPTARG" ;;
+            \?) fatal "Invalid snap() option: -$OPTARG" ;;
         esac
     done
     shift $(( OPTIND - 1 ))
 
-    # Do not quote $d_opt, but ensure it does not contain spaces.
-    if ! pool_ok $d_opt "${1%%/*}"; then
+    # Do not quote $D_opt, but ensure it does not contain spaces.
+    if ! pool_ok $D_opt "${1%%/*}"; then
         warn "DID NOT snapshot $1 because of pool state!"
     elif [ -n "$S_opt" ] && pool_scrub "${1%%/*}"; then
         warn "DID NOT snapshot $1 because '-S' was supplied and the pool is \
@@ -461,7 +461,7 @@ a resilver in progress!"
             [ -n "$r_opt" ] && printf "\-r "
             echo "$1@ZAP_${hn}_${date}--${ttl}"
         fi
-        # Do not quote $d_opt, but ensure it does not contain spaces.
+        # Do not quote $r_opt, but ensure it does not contain spaces.
         zfs snap $r_opt "$1@ZAP_${hn}_${date}--${ttl}"
     fi
 }
@@ -484,7 +484,7 @@ hostptn="^\(\([:alnum:]]\|[[:alnum:]][[:alnum:]\-]*[[:alnum:]]\)\.\)*\([[:alnum:
 ipptn="^\(\([0-9]\|[1-9][0-9]\|1[0-9]\{2\}\|2[0-4][0-9]\|25[0-5]\)\.\)\{3\}\([0-9]\|[1-9][0-9]\|1[0-9]\{2\}\|2[0-4][0-9]\|25[0-5]\)$"
 ttlptn='^[0-9]\{1,4\}[dwmy]$'
 unptn="^[[:alpha:]_][[:alnum:]_-]\{0,31\}$"
-readonly version=0.6.9
+readonly version=0.7.0
 zptn="@ZAP_(${hn})_..*--[0-9]{1,4}[dwmy]" # extended re
 
 case $1 in

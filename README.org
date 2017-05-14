@@ -4,11 +4,11 @@
    zap plays nice with manually created snapshots or snapshots from other tools.  It will only operate on snapshots it creates.
 
 ** Synopsis
-   =% zap snap|snapshot [-dLSv] TTL [[-r] dataset]...=
+   =% zap snap|snapshot [-DLSv] TTL [[-r] dataset]...=
 
-   =% zap rep|replicate [-dFLSv] [[user@]host:parent_dataset [-r] dataset [[-r] dataset]...]=
+   =% zap rep|replicate [-DFLSv] [[user@]host:parent_dataset [-r] dataset [[-r] dataset]...]=
 
-   =% zap destroy [-dlsv] [host[,host]...]=
+   =% zap destroy [-Dlsv] [host[,host]...]=
 
    =% zap -v | -version | --version=
 ** Subcommands
@@ -32,7 +32,7 @@ from the local host are destroyed.  If a comma separated list of hosts are speci
 
 *** Subcommand options
 
-    =-d=  Operate on snapshots, even when the pool is in a DEGRADED state.
+    =-D=  Do not operate on snapshots when the pool is in a DEGRADED state.
 
     =-F=  Supply =-F= to =zfs receive=, which destroys remote changes that do not exist on the sending side.
 
@@ -61,7 +61,7 @@ and =rep= subcommands.
    % zap snap -v 1d -r zroot/usr/home
 #+END_SRC
 
-   Create snapshots (recursively for tank and zroot/var) even if the pool is DEGRADED.  The snapshots will expire after three weeks.  Be verbose.
+   Create snapshots (recursively for tank and zroot/var), but not if the pool is in a DEGRADED state.  The snapshots will expire after three weeks.  Be verbose.
 #+BEGIN_SRC sh
    % zap snap -dv 3w -r tank -r zroot/var zroot/usr/home/nox
 #+END_SRC
