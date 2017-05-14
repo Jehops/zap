@@ -56,7 +56,7 @@ is_pint () {
 # pool_ok [-d] pool
 # If the -d option is supplied, consider the DEGRADED state ok.
 pool_ok () {
-    skip="DEGRADED\|FAULTED\|OFFLINE\|REMOVED\|UNAVAIL"
+    skip="state: \(DEGRADED\|FAULTED\|OFFLINE\|REMOVED\|UNAVAIL\)"
     OPTIND=1
     while getopts ":d" opt; do
         case $opt in
