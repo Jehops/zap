@@ -63,7 +63,7 @@ and =rep= subcommands.
 
    Create snapshots (recursively for tank and zroot/var), but not if the pool is in a DEGRADED state.  The snapshots will expire after three weeks.  Be verbose.
 #+BEGIN_SRC sh
-   % zap snap -dv 3w -r tank -r zroot/var zroot/usr/home/nox
+   % zap snap -Dv 3w -r tank -r zroot/var zroot/usr/home/nox
 #+END_SRC
 
    Create snapshots for datasets with the =zap:snap= property set to on.
