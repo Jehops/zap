@@ -200,7 +200,7 @@ destroy () {
     [ -n "$v_opt" ] && printf "%s\nDestroying snapshots...\n" "$(date)"
     for i in $(zfs list -H -t snap -o name); do
         if echo "$i" | grep -E -q "$zptn"; then
-            pool="${i%%/*}"
+            pool="${i%%[/@]*}"
             # Do not quote $D_opt, but ensure it does not contain spaces.
             if ! pool_ok $D_opt "$pool"; then
                 warn "Did not destroy $i because of pool state."
