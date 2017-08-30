@@ -11,43 +11,6 @@
    =% zap destroy [-Dlsv] [host[,host]...]=
 
    =% zap -v | -version | --version=
-** Subcommands
-   =snap= | =snapshot=
-
-   Use the =snap= subcommand to create snapshots that will expire after =TTL= (time to live) has elapsed.  An expired snapshot will be destroyed the next time =zap destroy= is run.  =TTL= takes the form =[0-9]{1,4}[dwmy]=.  That is, one to four digits followed by a character to represent the time unit
-(day, week, month, or year). If datasets are not not supplied on the command line, snapshots will be created for datasets with the property =zap:snap= set to =on=.
-
-   =rep= | =replicate=
-
-   Use the =rep= subcommand to replicate datasets.  If a destination and datasets are not supplied on the command line, datasets with a destination set in the =zap:rep= user property are replicated.  If the =canmount= property of the local dataset is set to =on=, after replication an attempt is made to set =canmount= to =noauto= on the remote side.  This is done to prevent mountpoint collisions.
-
-   =destroy=
-
-   Use the =destroy= subcommand to destroy expired snapshots.  By default, only snapshots originating from the local host are destroyed.  If a comma separated list of hosts are specified, then only snapshots originating from those hosts are destroyed. Hosts must be specified without any domain information, that is, as returned by =hostname -s=.
-
-** Options
-
-   =-v= | =-version= | =--version= Show the version.
-
-*** Subcommand options
-
-    =-D=  Do not operate on snapshots when the pool is in a DEGRADED state.
-
-    =-F=  Supply =-F= to =zfs receive=, which destroys remote changes that do not exist on the sending side.
-
-    =-L=  Do not operate on snapshots if the pool has a resilver in progress.  This is the default for the =destroy= subcommand.
-
-    =-l=  Operate on snapshots, even if the pool has a resilver in progress.  This is the default for the
-=snap= and =rep= subcommands.
-
-    =-S=  Do not operate on snapshots if the pool is being scrubbed.  This is the default for the =destroy= subcommand.
-
-    =-s=  Operate on snapshots, even if the pool is being scrubbed.  This is the default for the =snap=
-and =rep= subcommands.
-
-    =-r=  Recursively create or replicate snapshots of all descendents.
-
-    =-v=  Be verbose.
 
 ** Examples
    Create snapshots that will expire after 3 weeks.
@@ -118,6 +81,44 @@ PATH=/etc:/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/bin
 ^{[1] If you are concerned with =/etc/crontab= being changed when the OS is upgraded, use =crontab -e= instead of editing =/etc/crontab=.}
 
 ^{[2] Ensure the location where zap is installed (usually =/usr/local/bin=) is listed in the PATH declaration at the top of =/etc/crontab=.  Alternatively, use zap's full path in the crontab entries.}
+
+** Subcommands
+   =snap= | =snapshot=
+
+   Use the =snap= subcommand to create snapshots that will expire after =TTL= (time to live) has elapsed.  An expired snapshot will be destroyed the next time =zap destroy= is run.  =TTL= takes the form =[0-9]{1,4}[dwmy]=.  That is, one to four digits followed by a character to represent the time unit
+(day, week, month, or year). If datasets are not not supplied on the command line, snapshots will be created for datasets with the property =zap:snap= set to =on=.
+
+   =rep= | =replicate=
+
+   Use the =rep= subcommand to replicate datasets.  If a destination and datasets are not supplied on the command line, datasets with a destination set in the =zap:rep= user property are replicated.  If the =canmount= property of the local dataset is set to =on=, after replication an attempt is made to set =canmount= to =noauto= on the remote side.  This is done to prevent mountpoint collisions.
+
+   =destroy=
+
+   Use the =destroy= subcommand to destroy expired snapshots.  By default, only snapshots originating from the local host are destroyed.  If a comma separated list of hosts are specified, then only snapshots originating from those hosts are destroyed. Hosts must be specified without any domain information, that is, as returned by =hostname -s=.
+
+** Options
+
+   =-v= | =-version= | =--version= Show the version.
+
+*** Subcommand options
+
+    =-D=  Do not operate on snapshots when the pool is in a DEGRADED state.
+
+    =-F=  Supply =-F= to =zfs receive=, which destroys remote changes that do not exist on the sending side.
+
+    =-L=  Do not operate on snapshots if the pool has a resilver in progress.  This is the default for the =destroy= subcommand.
+
+    =-l=  Operate on snapshots, even if the pool has a resilver in progress.  This is the default for the
+=snap= and =rep= subcommands.
+
+    =-S=  Do not operate on snapshots if the pool is being scrubbed.  This is the default for the =destroy= subcommand.
+
+    =-s=  Operate on snapshots, even if the pool is being scrubbed.  This is the default for the =snap=
+and =rep= subcommands.
+
+    =-r=  Recursively create or replicate snapshots of all descendents.
+
+    =-v=  Be verbose.
 
 ** Authors and Contributors
    - Joseph Mingrone <jrm@ftfl.ca>
