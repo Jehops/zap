@@ -91,7 +91,6 @@ and =rep= subcommands.
 
      Crontab entries^{[1],[2]} for rolling snapshots and remote replication.
 
-     Note:
      - Refer to http://ftfl.ca/blog/2016-12-27-zfs-replication.html for a detailed description of a backup and replication strategy.
      - Snapshots are created for datasets with the =zap:snap= property set to =on=.
      - Datasets with the =zap:rep= property set are replicated.
