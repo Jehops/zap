@@ -117,6 +117,7 @@ PATH=/etc:/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/bin
 #+END_SRC
 
 ^{[1] If you are concerned with =/etc/crontab= being changed when the OS is upgraded, use =crontab -e= instead of editing =/etc/crontab=.}
+
 ^{[2] Ensure the location where zap is installed (usually =/usr/local/bin=) is listed in the PATH declaration at the top of =/etc/crontab=.  Alternatively, use zap's full path in the crontab entries.}
 
 ** Authors and Contributors
