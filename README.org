@@ -15,73 +15,61 @@
 ** Examples
    Create snapshots that will expire after 3 weeks.
 #+BEGIN_SRC sh
-  % zfs set zap:snap=on zroot/usr/home/nox zroot/var/
-  % zfs set zap:snap=off zroot/var/crash zroot/var/tmp zroot/var/mail
-  % zap snap 3w
+  # zfs set zap:snap=on zroot/usr/home/nox zroot/var/
+  # zfs set zap:snap=off zroot/var/crash zroot/var/tmp zroot/var/mail
+  # zap snap 3w
 #+END_SRC
-
-   Create snapshots specifying the datasets on the command line.
+   Create snapshots specifying the datasets on the command line.  Recursively create snapshots for zroot/var.
 #+BEGIN_SRC sh
-   % zap snap 3w zroot/usr/home/nox zroot/var
+   # zap snap 3w zroot/usr/home/nox -r zroot/var
 #+END_SRC
-   Recursively create snapshots that will expire after one day.  Be verbose.
+   Create snapshots that will expire after one day.  Be verbose.
 #+BEGIN_SRC sh
-   % zfs set zap:snap=on zroot/usr/home
-   % zap snap -v 1d
+   # zfs set zap:snap=on zroot/usr/home
+   # zap snap -v 1d
 #+END_SRC
-
    Replicate datasets to the remote host bravo, under the zback/phe dataset.  If you use a non-default ssh port, specify it in =~/.ssh/config=.
 #+BEGIN_SRC sh
-   % zfs set zap:rep='zap@bravo:zback/phe' zroot/ROOT zroot/usr/home/jrm
-   % zap rep -v
+   # zfs set zap:rep='zap@bravo:zback/phe' zroot/ROOT zroot/usr/home/jrm
+   # zap rep -v
 #+END_SRC
-
-   Replicate datasets (recursively for zroot/ROOT) to the remote host bravo, under the rback/phe dataset, but this time specify the datasets on the command line.  If you use a non-default ssh port, specify it in =~/.ssh/config=.
+   Replicate datasets (recursively for zroot/ROOT) to the remote host bravo, under the =rback/phe= dataset, but this time specify the datasets on the command line.  If you use a non-default ssh port, specify it in =~/.ssh/config=.
 #+BEGIN_SRC sh
-   % zap rep zap@bravo:rback/phe -r zroot/ROOT zroot/usr/home/jrm
+   # zap rep zap@bravo:rback/phe -r zroot/ROOT zroot/usr/home/jrm
 #+END_SRC
-
    Destroy expired snapshots.  Be verbose.
 #+BEGIN_SRC sh
-   % zap destroy -v
+   # zap destroy -v
 #+END_SRC
-
-   Destroy expired snapshots that originated from either the host awarnach or
-   the host gly.  Be verbose.
+   Destroy expired snapshots that originated from either the host awarnach or the host gly.  Be verbose.
 #+BEGIN_SRC sh
    % zap destroy -v awarnach,gly
 #+END_SRC
-
-     Crontab entries^{[1],[2]} for rolling snapshots and remote replication.
+     Example crontab entries for rolling snapshots and remote replication.
 
      - Refer to http://ftfl.ca/blog/2016-12-27-zfs-replication.html for a detailed description of a backup and replication strategy.
      - Snapshots are created for datasets with the =zap:snap= property set to =on=.
      - Datasets with the =zap:rep= property set are replicated.
      - Taking snapshots is normally cheap, so do it often. Destroying snapshots can thrash disks, so only do it every 24 hours.
-     - Appropriate zfs permissions must be set for the =zap= user.
 
 #+BEGIN_SRC sh
-SHELL=/bin/sh
-PATH=/etc:/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/bin
-
-#minute	hour	mday	month	wday	who	command
-
-# take snapshots
-*/5	*	*	*	*	zap	zap snap 1d
-14	*/4	*	*	*	zap	zap snap 1w
-14	00	*	*	1	zap	zap snap 1m
-
-# destroy snapshots
-44	04	*	*	*	root	zap destroy
-
-# replicate datasets
-54	*/1	*	*	*	zap     zap rep
+# crontab -e
 #+END_SRC
 
-^{[1] If you are concerned with =/etc/crontab= being changed when the OS is upgraded, use =crontab -e= instead of editing =/etc/crontab=.}
+#+BEGIN_SRC sh
+#minute	hour	mday	month	wday	command
 
-^{[2] Ensure the location where zap is installed (usually =/usr/local/bin=) is listed in the PATH declaration at the top of =/etc/crontab=.  Alternatively, use zap's full path in the crontab entries.}
+# take snapshots
+*/5	*	*	*	*	zap snap 1d
+14	*/4	*	*	*	zap snap 1w
+14	00	*	*	1	zap snap 1m
 
+# replicate datasets
+54	*/1	*	*	*	zap rep -v
+
+# destroy snapshots
+44	04	*	*	*	zap destroy
+#+END_SRC
 ** Subcommands
    =snap= | =snapshot=
 
