@@ -116,8 +116,9 @@ PATH=/etc:/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/bin
 54	*/1	*	*	*	zap     zap rep
 #+END_SRC
 
-^{[1] If you are concerned with <span class="file">/etc/crontab</span> being changed when the OS is upgraded, use <span class="file">crontab -e</span> instead of editing <span class="file">/etc/crontab</span>.}
-^{[2] Ensure the location where zap is installed (usually <span class="file">/usr/local/bin</span>) is listed in the PATH declaration at the top of <span class="file">/etc/crontab</span>.  Alternatively, use zap's full path in the crontab entries.}
+[1] If you are concerned with <span class="file">/etc/crontab</span> being changed when the OS is upgraded, use <span class="file">crontab -e</span> instead of editing <span class="file">/etc/crontab</span>.
+
+[2] Ensure the location where zap is installed (usually <span class="file">/usr/local/bin</span>) is listed in the PATH declaration at the top of <span class="file">/etc/crontab</span>.  Alternatively, use zap's full path in the crontab entries.
 
 ** Authors and Contributors
    - Joseph Mingrone <jrm@ftfl.ca>
