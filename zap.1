@@ -37,7 +37,7 @@ configuration files.  All parameters are supplied on the command line or in zfs
 properties and all snapshot information is stored in snapshot names.
 .Pp
 .Nm
-plays nice with manually-created snapshots or snapshots from other tools.  It
+will not interfere with manually created snapshots or snapshots from other tools.  It
 will only operate on snapshots it creates.
 .Pp
 If the pool is in a DEGRADED state, then snapshots will still be created,
@@ -138,32 +138,32 @@ Be verbose.
 .Sh EXAMPLES
 Create snapshots that will expire after three weeks.
 .Bd -literal -offset indent
-zap snap 3w zroot/usr/home/nox zroot/var
+zfs set zap:snap=on zroot/usr/home/nox zroot/var/
+zfs set zap:snap=off zroot/var/crash zroot/var/tmp zroot/var/mail
+zap snap 3w
+.Ed
+.Pp
+Create snapshots specifying the datasets on the command line.
+.Bd -literal -offset indent
+zap snap 3w zroot/usr/home/nox -r zroot/var
 .Ed
 .Pp
 Recursively create snapshots that will expire after one day.  Be verbose.
 .Bd -literal -offset indent
-zap snap -v 1d -r zroot/usr/home
+zfs set zap:snap=on zroot/usr/home
+zap snap -v 1d
 .Ed
 .Pp
-Create snapshots (recursively for tank and zroot/var), but not if the pool is in
-a DEGRADED state.  The snapshots will expire after three weeks.  Be verbose.
+Replicate datasets to the remote host bravo, under the zback/phe dataset. If you
+use a non-default ssh port, specify it in ~/.ssh/config.
 .Bd -literal -offset indent
-zap snap -Dv 3w -r tank -r zroot/var zroot/usr/home/nox
-.Ed
-.Pp
-Create snapshots for datasets with the
-.Sy zap:snap
-property set to
-.Sy on Ns .
-.Bd -literal -offset indent
-zap snap 1d
-zap snap 3w
+zfs set zap:rep='zap@bravo:zback/phe' zroot/ROOT zroot/usr/home/jrm
+zap rep -v
 .Ed
 .Pp
 Replicate datasets (recursively for zroot/ROOT) to the remote host bravo, under
-the rback/phe dataset.  If you use a non-default ssh port, specify it in
-~/.ssh/config.
+the rback/phe dataset, but this time specify the datasets on the command
+line. If you use a non-default ssh port, specify it in ~/.ssh/config.
 .Bd -literal -offset indent
 zap rep zap@bravo:rback/phe -r zroot/ROOT zroot/usr/home/jrm
 .Ed
@@ -179,44 +179,23 @@ host gly. Be verbose.
 zap destroy -v awarnach,gly
 .Ed
 .Pp
-Automate management of rolling snapshots for datasets with the
-.Sy zap:snap
-property set and replication for datasets with the
-.Sy zap:rep
-property set using these
-.Xr crontab 5
-entries.  Taking snapshots is normally cheap, so do it often. Destroying
-snapshots can thrash disks, so only do it every 24 hours.
+Example crontab entries for rolling snapshots and remote replication.  Taking
+snapshots is normally cheap, so do it often. Destroying snapshots can thrash
+disks, so only do it every 24 hours.
 .Pp
-Note:
-.Bl -bullet -compact -offset 1
-.It
-This example uses the system crontab file, so an extra
-.Sy who
-field is included.
-.It
-Appropriate zfs permissions must be set for the
-.Sy zap
-user.
-.It
-.Xr cron 8
-must be aware of the full path to
-.Nm zap Ns
-, since the full path is not used in these entries.
-.El
 .Bd -literal -offset indent
-#minute	hour	mday	month	wday	who	command
+#minute	hour	mday	month	wday	command
 
 # take snapshots
-*/5	*	*	*	*	zap	zap snap 1d
-14	*/4	*	*	*	zap	zap snap 1w
-14	00	*	*	1	zap	zap snap 1m
+*/5	*	*	*	*	zap snap 1d
+14	*/4	*	*	*	zap snap 1w
+14	00	*	*	1	zap snap 1m
 
 # destroy snapshots
-44	04	*	*	*	root	zap destroy
+44	04	*	*	*	zap destroy
 
 # replicate datasets
-54	*/1	*	*	*	zap     zap rep
+54	*/1	*	*	*	zap rep -v
 .Ed
 .Sh SEE ALSO
 .Bl -tag -compact -width "12345678"
