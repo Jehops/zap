@@ -19,7 +19,7 @@
   # zfs set zap:snap=off zroot/var/crash zroot/var/tmp zroot/var/mail
   # zap snap 3w
 #+END_SRC
-   Create snapshots specifying the datasets on the command line.  Recursively create snapshots for zroot/var.
+   Create snapshots specifying the datasets on the command line.
 #+BEGIN_SRC sh
    # zap snap 3w zroot/usr/home/nox -r zroot/var
 #+END_SRC
