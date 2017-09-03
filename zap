@@ -245,6 +245,7 @@ rep_parse () {
     if [ -z "$*" ]; then # use zap:rep property to replicate
         for f in $(zfs list -H -o name -t volume,filesystem); do
             dest=$(zfs get -H -o value zap:rep "$f")
+            printf "DEBUG: ********* Destination: %s ************\n" "$dest"
             rep "$f" "$dest"
         done
     else # use arguments to replicate
@@ -285,6 +286,8 @@ rep () {
     # done
     # shift $(( OPTIND - 1 ))
 
+    printf "DEBUG: ****************** rep argument: %s *********************\n" "$2"
+
     # Do not quote $D_opt, but ensure it does not contain spaces.
     if ! pool_ok $D_opt "${1%%/*}"; then
         warn "DID NOT replicate $1 because of pool state."
@@ -311,12 +314,17 @@ a resilver in progress."
     else
         #if [ "$d_type" = 'r' ]; then
         sshto=$(echo "$2" | cut -d':' -f1)
+        printf "DEBUG: ****************** sshto: %s *******************\n" "$sshto"
         rloc=$(echo "$2" | cut -d':' -f2)
+        printf "DEBUG: ****************** rloc: %s *******************\n" "$rloc"
         l_ts=$(ss_ts "$(ss_st "$lsnap")")
+        printf "DEBUG: ****************** l_ts: %s *******************\n" "$l_ts"
         fs="${1#*/}"
+        printf "DEBUG: ****************** fs: %s *******************\n" "$fs"
         # get the youngest remote snapshot for this dataset
         rsnap=$(ssh "$sshto" "zfs list -rd1 -tsnap -o name -s creation \
 $rloc/$fs 2>/dev/null | grep @ZAP_${hn}_ | tail -1 | sed 's/^.*@/@/'")
+        printf "DEBUG: ****************** rsnap: %s *******************\n" "$rsnap"
         if [ -z "$rsnap" ]; then
             [ -n "$v_opt" ] && \
                 echo "No remote snapshots found. Sending full stream."
