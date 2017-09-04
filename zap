@@ -56,11 +56,11 @@ is_pint () {
 # pool_ok [-D] pool
 # If the -D option is supplied, do not consider the DEGRADED state ok.
 pool_ok () {
-    skip="state: \(FAULTED\|OFFLINE\|REMOVED\|UNAVAIL\)"
+    skip='state: \(FAULTED\|OFFLINE\|REMOVED\|UNAVAIL\)'
     OPTIND=1
     while getopts ":D" opt; do
         case $opt in
-            D)  skip="state: \(DEGRADED\|FAULTED\|OFFLINE\|REMOVED\|UNAVAIL\)" ;;
+            D)  skip='state: \(DEGRADED\|FAULTED\|OFFLINE\|REMOVED\|UNAVAIL\)' ;;
             \?) fatal "Invalid pool_ok() option: -$OPTARG" ;;
         esac
     done
@@ -132,7 +132,7 @@ val_dest () {
             un=$(echo "$1"      | cut -s -d'@' -f1) # extract username
             rest=$(echo "$1"    | cut    -d'@' -f2) # everything but username
             host=$(echo "$rest" | cut -s -d':' -f1) # host or ip
-            ds=$(echo "$rest"   | cut -s -d":" -f2) # dataset
+            ds=$(echo "$rest"   | cut -s -d':' -f2) # dataset
 
             ([ -z "$un" ] || echo "$un" | grep -q "$unptn") && \
                 echo "$host" | grep -q "$hostptn\|$ipptn" && \
@@ -197,7 +197,7 @@ destroy () {
 
     now_ts=$(date '+%s')
 
-    [ -n "$v_opt" ] && printf "%s\nDestroying snapshots...\n" "$(date)"
+    [ -n "$v_opt" ] && printf '%s\nDestroying snapshots...\n' "$(date)"
     for i in $(zfs list -H -t snap -o name); do
         if echo "$i" | grep -E -q "$zptn"; then
             pool="${i%%[/@]*}"
@@ -241,11 +241,11 @@ rep_parse () {
     done
     shift $(( OPTIND - 1 ))
 
-    [ -n "$v_opt" ] && printf "%s\nReplicating...\n" "$(date)"
+    [ -n "$v_opt" ] && printf '%s\nReplicating...\n' "$(date)"
     if [ -z "$*" ]; then # use zap:rep property to replicate
         for f in $(zfs list -H -o name -t volume,filesystem); do
             dest=$(zfs get -H -o value zap:rep "$f")
-            printf "DEBUG: ********* Destination: %s ************\n" "$dest"
+            printf 'DEBUG: ********* Destination: %s ************\n' "$dest"
             rep "$f" "$dest"
         done
     else # use arguments to replicate
@@ -286,7 +286,7 @@ rep () {
     # done
     # shift $(( OPTIND - 1 ))
 
-    printf "DEBUG: ****************** rep argument: %s *********************\n" "$2"
+    printf 'DEBUG: ****************** rep argument: %s *********************\n' "$2"
 
     # Do not quote $D_opt, but ensure it does not contain spaces.
     if ! pool_ok $D_opt "${1%%/*}"; then
@@ -314,13 +314,13 @@ a resilver in progress."
     else
         #if [ "$d_type" = 'r' ]; then
         sshto=$(echo "$2" | cut -d':' -f1)
-        printf "DEBUG: ****************** sshto: %s *******************\n" "$sshto"
+        printf 'DEBUG: ****************** sshto: %s *******************\n' "$sshto"
         rloc=$(echo "$2" | cut -d':' -f2)
-        printf "DEBUG: ****************** rloc: %s *******************\n" "$rloc"
+        printf 'DEBUG: ****************** rloc: %s *******************\n' "$rloc"
         l_ts=$(ss_ts "$(ss_st "$lsnap")")
-        printf "DEBUG: ****************** l_ts: %s *******************\n" "$l_ts"
+        printf 'DEBUG: ****************** l_ts: %s *******************\n' "$l_ts"
         fs="${1#*/}"
-        printf "DEBUG: ****************** fs: %s *******************\n" "$fs"
+        printf 'DEBUG: ****************** fs: %s *******************\n' "$fs"
         # get the youngest remote snapshot for this dataset
         rsnap=$(ssh "$sshto" "zfs list -rd1 -tsnap -o name -s creation \
 $rloc/$fs 2>/dev/null | grep @ZAP_${hn}_ | tail -1 | sed 's/^.*@/@/'")
@@ -415,7 +415,7 @@ snap_parse () {
     fi
 
     if [ -z "$*" ]; then # use zap:snap property to create snapshots
-        [ -n "$v_opt" ] && printf "%s\nCreating snapshots...\n" "$(date)"
+        [ -n "$v_opt" ] && printf '%s\nCreating snapshots...\n' "$(date)"
         for f in $(zfs list -Ho name -t volume,filesystem); do
             if [ "$(zfs get -H -o value zap:snap "$f")" = 'on' ]; then
                 snap "$f"
@@ -488,11 +488,11 @@ esac
 
 date=$(date '+%Y-%m-%dT%H:%M:%S%z' | sed 's/+/p/')
 hn=$(hostname -s)
-hostptn="^\(\([:alnum:]]\|[[:alnum:]][[:alnum:]\-]*[[:alnum:]]\)\.\)*\([[:alnum:]]\|[[:alnum:]][[:alnum:]\-]*[[:alnum:]]\)$"
-ipptn="^\(\([0-9]\|[1-9][0-9]\|1[0-9]\{2\}\|2[0-4][0-9]\|25[0-5]\)\.\)\{3\}\([0-9]\|[1-9][0-9]\|1[0-9]\{2\}\|2[0-4][0-9]\|25[0-5]\)$"
+hostptn='^\(\([:alnum:]]\|[[:alnum:]][[:alnum:]\-]*[[:alnum:]]\)\.\)*\([[:alnum:]]\|[[:alnum:]][[:alnum:]\-]*[[:alnum:]]\)$'
+ipptn='^\(\([0-9]\|[1-9][0-9]\|1[0-9]\{2\}\|2[0-4][0-9]\|25[0-5]\)\.\)\{3\}\([0-9]\|[1-9][0-9]\|1[0-9]\{2\}\|2[0-4][0-9]\|25[0-5]\)$'
 ttlptn='^[0-9]\{1,4\}[dwmy]$'
-unptn="^[[:alpha:]_][[:alnum:]_-]\{0,31\}$"
 readonly version=0.7.0
+unptn='^[[:alpha:]_][[:alnum:]_-]\{0,31\}$'
 zptn="@ZAP_(${hn})_..*--[0-9]{1,4}[dwmy]" # extended re
 
 case $1 in
