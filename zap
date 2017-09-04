@@ -311,8 +311,8 @@ a resilver in progress."
         fi
     elif ! lsnap=$(zfs list -rd1 -tsnap -o name -s creation "$1" \
                        | grep "@ZAP_${hn}_" | tail -1 | cut -w -f1) ||
-         [ -z "$lsnap" ]; then
-         warn "Failed to find the newest local snapshot for $1."
+            [ -z "$lsnap" ]; then
+        warn "Failed to find the newest local snapshot for $1."
     else
         #if [ "$d_type" = 'r' ]; then
         sshto=$(echo "$2" | cut -d':' -f1)
@@ -357,10 +357,10 @@ creation $rloc/$fs 2>/dev/null | grep -m1 @ZAP_${hn}_'" | sed 's/^.*@/@/')
             fi
         else # send incremental stream
             r_ts=$(ss_ts "$(ss_st "$rsnap")")
-#            if [ -n "$v_opt" ]; then
-#                printf "Newest snapshots:\nlocal: %s\nremote: %s\n" \
-#                       "$lsnap" "$sshto:$rloc/$fs$rsnap"
-#            fi
+            # if [ -n "$v_opt" ]; then
+            #     printf "Newest snapshots:\nlocal: %s\nremote: %s\n" \
+            #            "$lsnap" "$sshto:$rloc/$fs$rsnap"
+            # fi
             if [ "$l_ts" -gt "$r_ts" ]; then
                 ## check if there is a local snapshot for the remote snapshot
                 if ! sp=$(zfs list -rd1 -t snap -H -o name "$1" | \
