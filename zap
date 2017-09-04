@@ -56,17 +56,17 @@ is_pint () {
 # pool_ok [-D] pool
 # If the -D option is supplied, do not consider the DEGRADED state ok.
 pool_ok () {
-  skip='state: \(FAULTED\|OFFLINE\|REMOVED\|UNAVAIL\)'
+  skip='state: (FAULTED|OFFLINE|REMOVED|UNAVAIL)'
   OPTIND=1
   while getopts ":D" opt; do
     case $opt in
-      D)  skip='state: \(DEGRADED\|FAULTED\|OFFLINE\|REMOVED\|UNAVAIL\)' ;;
+      D)  skip='state: (DEGRADED|FAULTED|OFFLINE|REMOVED|UNAVAIL)' ;;
       \?) fatal "Invalid pool_ok() option: -$OPTARG" ;;
     esac
   done
   shift $(( OPTIND - 1 ))
 
-  if zpool status "$1" | grep -q "$skip"; then
+  if zpool status "$1" | grep -Eq "$skip"; then
     return 1
   fi
 
@@ -129,15 +129,14 @@ val_dest () {
   case $1 in
     *:*) # remote
       #d_type=r
-      un=$(echo "$1"      | cut -s -d'@' -f1) # extract username
-      rest=$(echo "$1"    | cut    -d'@' -f2) # everything but username
-      host=$(echo "$rest" | cut -s -d':' -f1) # host or ip
-      ds=$(echo "$rest"   | cut -s -d':' -f2) # dataset
+      un=${1%%@*} # extract username
+      rest=${1#*@}
+      host=${rest%%:*} # host or ip
+      ds=${rest#*:} # dataset
 
-      ([ -z "$un" ] || echo "$un" | grep -q "$unptn") && \
-        echo "$host" | grep -q "$hostptn\\|$ipptn" && \
-        echo "$ds" | grep -q '[^\0]\+' && \
-        echo "$ds" | grep -vq \'
+      ([ -z "$un" ] || echo "$un" | grep -Eq "$unptn") && \
+        echo "$host" | grep -Eq "$hostptn|$ipptn" && \
+        echo "$ds" | grep -Eq "$dsptn"
       ;;
     *)
       return 1
@@ -200,7 +199,7 @@ destroy () {
 
   [ -n "$v_opt" ] && printf '%s\nDestroying snapshots...\n' "$(date)"
   for i in $(zfs list -H -t snap -o name); do
-    if echo "$i" | grep -E -q "$zptn"; then
+    if echo "$i" | grep -Eq "$zptn"; then
       pool="${i%%[/@]*}"
       # Do not quote $D_opt, but ensure it does not contain spaces.
       if ! pool_ok $D_opt "$pool"; then
@@ -411,7 +410,7 @@ snap_parse () {
 
   ttl="$1"
   shift
-  if ! echo "$ttl" | grep -q "$ttlptn"; then
+  if ! echo "$ttl" | grep -Eq "$ttlptn"; then
     fatal "Unrecognized TTL $ttl."
   fi
 
@@ -489,12 +488,17 @@ esac
 
 date=$(date '+%Y-%m-%dT%H:%M:%S%z' | sed 's/+/p/')
 hn=$(hostname -s)
-hostptn='^\(\([:alnum:]]\|[[:alnum:]][[:alnum:]\-]*[[:alnum:]]\)\.\)*\([[:alnum:]]\|[[:alnum:]][[:alnum:]\-]*[[:alnum:]]\)$'
-ipptn='^\(\([0-9]\|[1-9][0-9]\|1[0-9]\{2\}\|2[0-4][0-9]\|25[0-5]\)\.\)\{3\}\([0-9]\|[1-9][0-9]\|1[0-9]\{2\}\|2[0-4][0-9]\|25[0-5]\)$'
-ttlptn='^[0-9]\{1,4\}[dwmy]$'
-unptn='^[[:alpha:]_][[:alnum:]_-]\{0,31\}$'
+
+# extended REs for egrep
+# portability of {} in egrep is uncertain
+dsptn='^\w[[:alnum:]_.:-]*(/[[:alnum:]_\.:-]+)*$'
+hostptn='^((\w|\w[[:alnum:]-]*\w)\.)*(\w|\w[[:alnum:]-]*\w)$'
+ipptn='^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])$'
+ttlptn='^[0-9]{1,4}[dwmy]$'
+unptn='^[[:alnum:]_][[:alnum:]_-]{0,31}$'
+zptn="@ZAP_(${hn})_..*--[0-9]{1,4}[dwmy]"
+
 readonly version=0.7.3
-zptn="@ZAP_(${hn})_..*--[0-9]{1,4}[dwmy]" # extended re
 
 case $1 in
   snap|snapshot) shift; snap_parse "$@" ;;
