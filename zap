@@ -324,23 +324,28 @@ a resilver in progress."
         fs="${1#*/}"
         printf 'DEBUG: ****************** fs: %s *******************\n' "$fs"
         # get the youngest remote snapshot for this dataset
-        rsnap=$(ssh "$sshto" "zfs list -rd1 -tsnap -o name -s creation \
-$rloc/$fs 2>/dev/null | grep @ZAP_${hn}_ | tail -1 | sed 's/^.*@/@/'")
-        printf "DEBUG: ****************** rsnap: %s *******************\n" "$rsnap"
+        # interpret remote command with sh to avoid surprises with remote shell
+        rsnap=$(ssh "$sshto" "sh -c 'zfs list -rd1 -H -tsnap -o name -S \
+creation $rloc/$fs 2>/dev/null | grep -m1 @ZAP_${hn}_'" | sed 's/^.*@/@/')
+        printf 'DEBUG: ****************** rsnap: %s *******************\n' "$rsnap"
         if [ -z "$rsnap" ]; then
             [ -n "$v_opt" ] && \
                 echo "No remote snapshots found. Sending full stream."
             [ -n "$v_opt" ] && \
                 echo "zfs send -p $lsnap | ssh $sshto \"zfs recv \
 -Fu $v_opt -d $rloc\""
+            # interpret remote command with sh to avoid surprises with remote shell
             if zfs send -p "$lsnap" | \
-                    ssh "$sshto" "zfs recv -Fu $v_opt -d $rloc"; then
+                    ssh "$sshto" "sh -c 'zfs recv -Fu $v_opt -d $rloc'"; then
                 [ -n "$v_opt" ] && \
                     echo "zfs bookmark $lsnap $(echo "$lsnap" | sed 's/@/#/')"
                 zfs bookmark "$lsnap" \
                     "$(echo "$lsnap" | sed 's/@/#/')"
                 if [ "$(zfs get -H -o value canmount "$1")" = 'on' ]; then
-                    if ssh "$sshto" "zfs set canmount=noauto $rloc/$fs"; then
+                    # interpret remote command with sh to avoid surprises with
+                    # remote shell
+                    if ssh "$sshto" "sh -c 'zfs set canmount=noauto $rloc/$fs'"
+                    then
                         [ -n "$v_opt" ] && \
                             echo "Set canmount=noauto for $sshto:$rloc/$fs";
                     else
@@ -374,8 +379,10 @@ intermediary snapshots will not be sent."
                     [ -n "$v_opt" ] && \
                         echo "zfs send $i $sp $lsnap | ssh $sshto \"zfs \
 recv -du $F_opt $v_opt $rloc\""
+                    # interpret remote command with sh to avoid surprises with
+                    # remote shell
                     if zfs send $i "$sp" "$lsnap" | \
-                            ssh "$sshto" "zfs recv -du $F_opt $v_opt $rloc"; then
+                            ssh "$sshto" "sh -c 'zfs recv -du $F_opt $v_opt $rloc'"; then
                         [ -n "$v_opt" ] && \
                             echo "zfs bookmark $lsnap $(echo "$lsnap" | sed \
 's/@/#/')"
