@@ -475,7 +475,7 @@ a resilver in progress!"
     else
         if [ -n "$v_opt" ]; then
             printf "zfs snap "
-            [ -n "$r_opt" ] && printf "\-r "
+            [ -n "$r_opt" ] && printf '-r '
             echo "$1@ZAP_${hn}_${date}--${ttl}"
         fi
         # Do not quote $r_opt, but ensure it does not contain spaces.
