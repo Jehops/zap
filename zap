@@ -135,8 +135,9 @@ val_dest () {
             ds=$(echo "$rest"   | cut -s -d':' -f2) # dataset
 
             ([ -z "$un" ] || echo "$un" | grep -q "$unptn") && \
-                echo "$host" | grep -q "$hostptn\|$ipptn" && \
-                echo "$ds" | grep -q '[^\0]\+'
+                echo "$host" | grep -q "$hostptn\\|$ipptn" && \
+                echo "$ds" | grep -q '[^\0]\+' && \
+                echo "$ds" | grep -vq \'
             ;;
         *)
             return 1
@@ -276,6 +277,7 @@ argument." ;;
 }
 
 # rep dataset destination
+# destination contains no single quotes
 rep () {
     # OPTIND=1
     # while getopts ":r" opt; do
