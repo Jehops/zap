@@ -322,8 +322,8 @@ creation $rloc/$fs 2>/dev/null | grep -m1 @ZAP_${hn}_'" | sed 's/^.*@/@/')
       [ -n "$v_opt" ] && \
         echo "No remote snapshots found. Sending full stream."
       [ -n "$v_opt" ] && \
-        echo "zfs send -p $lsnap | ssh $sshto \"zfs recv \
--Fu $v_opt -d $rloc\""
+        echo "zfs send -p $lsnap | ssh $sshto \"sh -c 'zfs recv -Fu $v_opt -d \
+$rloc'\""
       # interpret remote command with sh to avoid surprises with remote shell
       if zfs send -p "$lsnap" | \
           ssh "$sshto" "sh -c 'zfs recv -Fu $v_opt -d $rloc'"; then
@@ -366,15 +366,14 @@ intermediary snapshots will not be sent."
         else
           if echo "$sp" | grep -q '@'; then i='-I'; else i='-i'; fi
           [ -n "$v_opt" ] && \
-            echo "zfs send $i $sp $lsnap | ssh $sshto \"zfs \
-recv -du $F_opt $v_opt $rloc\""
+            echo "zfs send $i $sp $lsnap | ssh $sshto \"sh -c 'zfs recv -du \
+$F_opt $v_opt $rloc'\""
           # interpret remote command with sh to avoid surprises with
           # remote shell
           if zfs send $i "$sp" "$lsnap" | \
               ssh "$sshto" "sh -c 'zfs recv -du $F_opt $v_opt $rloc'"; then
             [ -n "$v_opt" ] && \
-              echo "zfs bookmark $lsnap $(echo "$lsnap" | sed \
-'s/@/#/')"
+              echo "zfs bookmark $lsnap $(echo "$lsnap" | sed 's/@/#/')"
             if zfs bookmark "$lsnap" \
                    "$(echo "$lsnap" | sed 's/@/#/')"; then
               [ -n "$v_opt" ] && \
@@ -464,7 +463,7 @@ a resilver in progress!"
   else
     if [ -n "$v_opt" ]; then
       printf "zfs snap "
-      [ -n "$r_opt" ] && printf '-r '
+      [ -n "$r_opt" ] && printf '%s ' '-r'
       echo "$1@ZAP_${hn}_${date}--${ttl}"
     fi
     # Do not quote $r_opt, but ensure it does not contain spaces.
