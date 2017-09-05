@@ -311,8 +311,8 @@ a resilver in progress."
     warn "Failed to find the newest local snapshot for $1."
   else
     #if [ "$d_type" = 'r' ]; then
-    sshto=$(echo "$2" | cut -d':' -f1)
-    rloc=$(echo "$2" | cut -d':' -f2)
+    sshto=${2%%:*}
+    rloc=${2#*:}
     l_ts=$(ss_ts "$(ss_st "$lsnap")")
     fs="${1#*/}"
     # get the youngest remote snapshot for this dataset
