@@ -305,9 +305,8 @@ a resilver in progress."
       warn "Invalid remote replication location: $tdest."
       warn "Failed to replicate $1."
     fi
-  elif ! lsnap=$(zfs list -rd1 -tsnap -o name -s creation "$1" \
-                   | grep "@ZAP_${hn}_" | tail -1 | cut -w -f1) ||
-      [ -z "$lsnap" ]; then
+  elif ! lsnap=$(zfs list -rd1 -H -tsnap -o name -S creation "$1" \
+                   | grep -m1 "@ZAP_${hn}_") || [ -z "$lsnap" ]; then
     warn "Failed to find the newest local snapshot for $1."
   else
     #if [ "$d_type" = 'r' ]; then
@@ -354,8 +353,7 @@ creation $rloc/$fs 2>/dev/null | grep -m1 @ZAP_${hn}_'" | sed 's/^.*@/@/')
       # fi
       if [ "$l_ts" -gt "$r_ts" ]; then
         ## check if there is a local snapshot for the remote snapshot
-        if ! sp=$(zfs list -rd1 -t snap -H -o name "$1" | \
-                    grep "$rsnap"); then
+        if ! sp=$(zfs list -rd1 -t snap -H -o name "$1" | grep "$rsnap"); then
           warn "Failed to find local snapshot for remote snapshot."
           warn "Will attempt to fall back to a bookmark, but all \
 intermediary snapshots will not be sent."
