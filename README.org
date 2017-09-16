@@ -4,16 +4,16 @@
    zap will not interfere with manually created snapshots or snapshots from other tools.  It will only operate on snapshots it creates.
 
 ** Synopsis
-   =% zap snap|snapshot [-DLSv] TTL [[-r] dataset]...=
+   =# zap snap|snapshot [-DLSv] TTL [[-r] dataset]...=
 
-   =% zap rep|replicate [-DFLSv] [[user@]host:parent_dataset [-r] dataset [[-r] dataset]...]=
+   =# zap rep|replicate [-DFLSv] [[user@]host:parent_dataset [-r] dataset [[-r] dataset]...]=
 
-   =% zap destroy [-Dlsv] [host[,host]...]=
+   =# zap destroy [-Dlsv] [host[,host]...]=
 
-   =% zap -v | -version | --version=
+   =# zap -v | -version | --version=
 
 ** Examples
-   Create snapshots that will expire after 3 weeks.
+   Create snapshots that will expire after 3 weeks.  The '#' prompt indicates commands that are run as root.  A solution that delegates permissions for most of these commands to an unprivileged user is described [[http://ftfl.ca/blog/2016-12-27-zfs-replication.html][here]].
 #+BEGIN_SRC sh
   # zfs set zap:snap=on zroot/usr/home/nox zroot/var/
   # zfs set zap:snap=off zroot/var/crash zroot/var/tmp zroot/var/mail
@@ -43,7 +43,7 @@
 #+END_SRC
    Destroy expired snapshots that originated from either the host awarnach or the host gly.  Be verbose.
 #+BEGIN_SRC sh
-   % zap destroy -v awarnach,gly
+   # zap destroy -v awarnach,gly
 #+END_SRC
      Example crontab entries for rolling snapshots and remote replication.
 
