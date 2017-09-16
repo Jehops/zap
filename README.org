@@ -13,7 +13,7 @@
    =# zap -v | -version | --version=
 
 ** Examples
-   Create snapshots that will expire after 3 weeks.  The '#' prompt indicates commands that are run as root.  A solution that delegates permissions for most of these commands to an unprivileged user is described [[http://ftfl.ca/blog/2016-12-27-zfs-replication.html][here]].
+   Create snapshots that will expire after 3 weeks.  The =#= prompt indicates commands that are run as root.  A solution that delegates permissions for most of these commands to an unprivileged user is described [[http://ftfl.ca/blog/2016-12-27-zfs-replication.html][here]].
 #+BEGIN_SRC sh
   # zfs set zap:snap=on zroot/usr/home/nox zroot/var/
   # zfs set zap:snap=off zroot/var/crash zroot/var/tmp zroot/var/mail
