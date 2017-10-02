@@ -317,7 +317,7 @@ a resilver in progress."
     # get the youngest remote snapshot for this dataset
     # interpret remote command with sh to avoid surprises with remote shell
     rsnap=$(ssh "$sshto" "sh -c 'zfs list -rd1 -H -tsnap -o name -S \
-creation $rloc/$fs 2>/dev/null | grep -m1 @ZAP_${hn}_'" | sed 's/^.*@/@/')
+creation $rloc/$fs 2>/dev/null | head -n1'" | sed 's/^.*@/@/')
     if [ -z "$rsnap" ]; then
       [ -n "$v_opt" ] && \
         echo "No remote snapshots found. Sending full stream."
@@ -345,6 +345,9 @@ $rloc'\""
       else
         warn "Failed to replicate $lsnap to $sshto:$rloc"
       fi
+    elif [ "${rsnap#*@ZAP_${hn}_}" = "${rsnap}" ]; then
+      echo "Failed to replicate $1, because the youngest snapshot for \
+$sshto:$rloc/$fs was not created by zap."
     else # send incremental stream
       r_ts=$(ss_ts "$(ss_st "$rsnap")")
       # if [ -n "$v_opt" ]; then
