@@ -40,7 +40,7 @@
 #
 
 fatal () {
-  echo "FATAL: $*" > /dev/stderr
+  echo "FATAL: $*" 1>&2
   exit 1
 }
 
@@ -112,8 +112,8 @@ ttl2s () {
 }
 
 usage () {
-  echo "$*" > /dev/stderr
-  cat <<EOF > /dev/stderr
+  echo "$*" 1>&2
+  cat <<EOF 1>&2
 usage:
    ${0##*/} snap|snapshot [-DLSv] TTL [[-r] dataset]...
    ${0##*/} rep|replicate [-DFLSv] [[user@]host:parent_dataset
