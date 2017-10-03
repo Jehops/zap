@@ -313,11 +313,11 @@ a resilver in progress."
     sshto=${2%%:*}
     rloc=${2#*:}
     l_ts=$(ss_ts "$(ss_st "$lsnap")")
-    fs="${1#*/}"
+    [ "${1#*/}" = "${1}" ] || fs="/${1#*/}"
     # get the youngest remote snapshot for this dataset
     # interpret remote command with sh to avoid surprises with remote shell
     rsnap=$(ssh "$sshto" "sh -c 'zfs list -rd1 -H -tsnap -o name -S \
-creation $rloc/$fs 2>/dev/null | head -n1'" | sed 's/^.*@/@/')
+creation ${rloc}${fs} 2>/dev/null | head -n1'" | sed 's/^.*@/@/')
     if [ -z "$rsnap" ]; then
       [ -n "$v_opt" ] && \
         echo "No remote snapshots found. Sending full stream."
@@ -334,12 +334,12 @@ $rloc'\""
         if [ "$(zfs get -H -o value canmount "$1")" = 'on' ]; then
           # interpret remote command with sh to avoid surprises with
           # remote shell
-          if ssh "$sshto" "sh -c 'zfs set canmount=noauto $rloc/$fs'"
+          if ssh "$sshto" "sh -c 'zfs set canmount=noauto ${rloc}${fs}'"
           then
             [ -n "$v_opt" ] && \
-              echo "Set canmount=noauto for $sshto:$rloc/$fs";
+              echo "Set canmount=noauto for $sshto:${rloc}${fs}";
           else
-            warn "Failed to set canmount=noauto for $sshto:$rloc/$fs"
+            warn "Failed to set canmount=noauto for $sshto:${rloc}${fs}"
           fi
         fi
       else
@@ -352,7 +352,7 @@ $sshto:$rloc/$fs was not created by zap."
       r_ts=$(ss_ts "$(ss_st "$rsnap")")
       # if [ -n "$v_opt" ]; then
       #     printf "Newest snapshots:\nlocal: %s\nremote: %s\n" \
-        #            "$lsnap" "$sshto:$rloc/$fs$rsnap"
+        #            "$lsnap" "$sshto:${rloc}${fs}${rsnap}"
       # fi
       if [ "$l_ts" -gt "$r_ts" ]; then
         ## check if there is a local snapshot for the remote snapshot
