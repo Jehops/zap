@@ -104,7 +104,7 @@
     =-s=  Operate on snapshots, even if the pool is being scrubbed.  This is the default for the =snap=
 and =rep= subcommands.
 
-    =-r=  Recursively create or replicate snapshots of all descendents.
+    =-r=  Recursively create or replicate snapshots of all descendants.
 
     =-v=  Be verbose.
 
