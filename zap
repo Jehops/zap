@@ -122,7 +122,6 @@ usage:
    ${0##*/} -v|-version|--version
 
 EOF
-  exit 0
 }
 
 val_dest () {
@@ -507,5 +506,5 @@ case $1 in
   rep|replicate) shift; rep_parse  "$@" ;;
   destroy)       shift; destroy    "$@" ;;
   -v|-version|--version) echo "$version" > /dev/stderr ;;
-  *)             usage "${0##*/}: missing or unknown subcommand -- $1" ;;
+  *)             usage "${0##*/}: missing or unknown subcommand -- $1"; exit 1 ;;
 esac
