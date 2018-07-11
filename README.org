@@ -37,6 +37,10 @@
 #+BEGIN_SRC sh
    # zap rep zap@bravo:rback/phe -r zroot/ROOT zroot/usr/home/jrm
 #+END_SRC
+   Replicate datasets (recursively for zroot/ROOT) to the localhost, under the =rback/phe= dataset, but this time specify the datasets on the command line. SSH will not be used in this case
+#+BEGIN_SRC sh
+   # zap rep localhost:rback/phe -r zroot/ROOT zroot/usr/home/jrm
+#+END_SRC
    Destroy expired snapshots.  Be verbose.
 #+BEGIN_SRC sh
    # zap destroy -v
@@ -112,6 +116,7 @@ and =rep= subcommands.
    - Joseph Mingrone <jrm@ftfl.ca>
    - Tobias Kortkamp <t@tobik.me>
    - David Samms <dsamms@nw-ds.com>
+   - Victor Naumov <vicnaumov@gmail.com>
 ** License
    zap is released under a BSD 2-Clause License.  Refer to the header of each
    source file for details.

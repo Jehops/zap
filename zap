@@ -133,9 +133,16 @@ val_dest () {
       host=${rest%%:*} # host or ip
       ds=${rest#*:} # dataset
 
-      ([ -z "$un" ] || echo "$un" | grep -Eq "$unptn") && \
-        echo "$host" | grep -Eq "$hostptn|$ipptn" && \
-        echo "$ds" | grep -Eq "$dsptn"
+      case "$host" in
+        "localhost"|"127.0.0.1"|"::1")
+          echo "$ds" | grep -Eq "$dsptn"
+          ;;
+        *)
+          ([ -z "$un" ] || echo "$un" | grep -Eq "$unptn") && \
+            echo "$host" | grep -Eq "$hostptn|$ipptn" && \
+            echo "$ds" | grep -Eq "$dsptn"
+          ;;
+      esac
       ;;
     *)
       return 1
@@ -273,6 +280,35 @@ argument." ;;
   fi
 }
 
+# execute on the "target" machine
+target_exec() {
+  local sshto=$1
+  local tcmd=$2
+  case "$sshto" in
+    "localhost"|"127.0.0.1"|"::1")
+      eval ${tcmd}
+      ;;
+    *)
+      # interpret remote command with sh to avoid surprises with remote shell
+      ssh "$sshto" "sh -c '${tcmd}'"
+      ;;
+  esac
+}
+
+target_echo() {
+  local sshto=$1
+  local tcmd=$2
+  case "$sshto" in
+    "localhost"|"127.0.0.1"|"::1")
+      [ -n "$v_opt" ] && echo ${tcmd}
+      ;;
+    *)
+      [ -n "$v_opt" ] && echo "ssh \"$sshto\" \"sh -c '${tcmd}'\""
+      ;;
+  esac
+}
+
+
 # rep dataset destination
 # destination contains no single quotes
 rep () {
@@ -314,30 +350,25 @@ a resilver in progress."
     l_ts=$(ss_ts "$(ss_st "$lsnap")")
     [ "${1#*/}" = "${1}" ] || fs="/${1#*/}"
     # get the youngest remote snapshot for this dataset
-    # interpret remote command with sh to avoid surprises with remote shell
-    rsnap=$(ssh "$sshto" "sh -c 'zfs list -rd1 -H -tsnap -o name -S \
-creation ${rloc}${fs} 2>/dev/null | head -n1'" | sed 's/^.*@/@/')
+    tcmd="zfs list -rd1 -H -tsnap -o name -S creation ${rloc}${fs} 2>/dev/null | head -n1 | sed 's/^.*@/@/'"
+    rsnap=$(target_exec "$sshto" "$tcmd")
     if [ -z "$rsnap" ]; then
       [ -n "$v_opt" ] && \
         echo "No remote snapshots found. Sending full stream."
-      [ -n "$v_opt" ] && \
-        echo "zfs send -p $lsnap | ssh $sshto \"sh -c 'zfs recv -Fu $v_opt -d \
-$rloc'\""
-      # interpret remote command with sh to avoid surprises with remote shell
-      if zfs send -p "$lsnap" | \
-          ssh "$sshto" "sh -c 'zfs recv -Fu $v_opt -d $rloc'"; then
+      tcmd="zfs recv -Fu $v_opt -d $rloc"
+      [ -n "$v_opt" ] && echo -n "zfs send -p $lsnap | " && target_echo "$sshto" "$tcmd"
+      if zfs send -p "$lsnap" | target_exec "$sshto" "$tcmd"
+      then
         [ -n "$v_opt" ] && \
           echo "zfs bookmark $lsnap $(echo "$lsnap" | sed 's/@/#/')"
-        zfs bookmark "$lsnap" \
-            "$(echo "$lsnap" | sed 's/@/#/')"
+        zfs bookmark "$lsnap" "$(echo "$lsnap" | sed 's/@/#/')"
         if [ "$(zfs get -H -o value canmount "$1")" = 'on' ]; then
           # interpret remote command with sh to avoid surprises with
           # remote shell
-          if ssh "$sshto" "sh -c 'zfs set canmount=noauto ${rloc}${fs}'"
+          tcmd="zfs set canmount=noauto ${rloc}${fs}"
+          [ -n "$v_opt" ] && target_echo "$sshto" "$tcmd"
+          if ! target_exec "$sshto" "$tcmd"
           then
-            [ -n "$v_opt" ] && \
-              echo "Set canmount=noauto for $sshto:${rloc}${fs}";
-          else
             warn "Failed to set canmount=noauto for $sshto:${rloc}${fs}"
           fi
         fi
@@ -369,13 +400,14 @@ ${rloc}${fs}${rsnap}."
           warn "Failed to replicate $lsnap to $sshto:$rloc."
         else
           if echo "$sp" | grep -q '@'; then i='-I'; else i='-i'; fi
-          [ -n "$v_opt" ] && \
-            echo "zfs send $i $sp $lsnap | ssh $sshto \"sh -c 'zfs recv -du \
-$F_opt $v_opt $rloc'\""
+
           # interpret remote command with sh to avoid surprises with
           # remote shell
-          if zfs send $i "$sp" "$lsnap" | \
-              ssh "$sshto" "sh -c 'zfs recv -du $F_opt $v_opt $rloc'"; then
+          tcmd="zfs recv -du $F_opt $v_opt $rloc"
+	  [ -n "$v_opt" ] && echo -n "zfs send $i $sp $lsnap | " && target_echo "$sshto" "$tcmd"
+
+          if zfs send $i "$sp" "$lsnap" | target_exec "$sshto" "$tcmd"
+          then
             [ -n "$v_opt" ] && \
               echo "zfs bookmark $lsnap $(echo "$lsnap" | sed 's/@/#/')"
             if zfs bookmark "$lsnap" \
