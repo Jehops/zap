@@ -282,28 +282,28 @@ argument." ;;
 
 # execute on the "target" machine
 target_exec() {
-  local sshto=$1
-  local tcmd=$2
-  case "$sshto" in
+  _sshto=$1
+  _tcmd=$2
+  case "$_sshto" in
     "localhost"|"127.0.0.1"|"::1")
-      eval ${tcmd}
+      eval "${_tcmd}"
       ;;
     *)
       # interpret remote command with sh to avoid surprises with remote shell
-      ssh "$sshto" "sh -c '${tcmd}'"
+      ssh "$_sshto" "sh -c '${_tcmd}'"
       ;;
   esac
 }
 
 target_echo() {
-  local sshto=$1
-  local tcmd=$2
-  case "$sshto" in
+  _sshto=$1
+  _tcmd=$2
+  case "$_sshto" in
     "localhost"|"127.0.0.1"|"::1")
-      [ -n "$v_opt" ] && echo ${tcmd}
+      [ -n "$v_opt" ] && echo "${_tcmd}"
       ;;
     *)
-      [ -n "$v_opt" ] && echo "ssh \"$sshto\" \"sh -c '${tcmd}'\""
+      [ -n "$v_opt" ] && echo "ssh \"$_sshto\" \"sh -c '${_tcmd}'\""
       ;;
   esac
 }
@@ -356,7 +356,7 @@ a resilver in progress."
       [ -n "$v_opt" ] && \
         echo "No remote snapshots found. Sending full stream."
       tcmd="zfs recv -Fu $v_opt -d $rloc"
-      [ -n "$v_opt" ] && echo -n "zfs send -p $lsnap | " && target_echo "$sshto" "$tcmd"
+      [ -n "$v_opt" ] && printf "zfs send -p %s | " "$lsnap" && target_echo "$sshto" "$tcmd"
       if zfs send -p "$lsnap" | target_exec "$sshto" "$tcmd"
       then
         [ -n "$v_opt" ] && \
@@ -404,7 +404,7 @@ ${rloc}${fs}${rsnap}."
           # interpret remote command with sh to avoid surprises with
           # remote shell
           tcmd="zfs recv -du $F_opt $v_opt $rloc"
-	  [ -n "$v_opt" ] && echo -n "zfs send $i $sp $lsnap | " && target_echo "$sshto" "$tcmd"
+	  [ -n "$v_opt" ] && printf "zfs send %s %s %s | " "$i" "$sp" "$lsnap" && target_echo "$sshto" "$tcmd"
 
           if zfs send $i "$sp" "$lsnap" | target_exec "$sshto" "$tcmd"
           then
