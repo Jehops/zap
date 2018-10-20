@@ -128,46 +128,36 @@ EOF
 
 val_dest () {
   case $1 in
-    *:*) # remote
-      #d_type=r
-      un=${1%%@*} # extract username
-      rest=${1#*@}
+    *:*)
+      case $1 in
+        *@*)
+          un=${1%%@*}
+          rest=${1#*@}
+          ;;
+        *)
+          rest="$1"
+          ;;
+      esac
       host=${rest%%:*} # host or ip
-      ds=${rest#*:} # dataset
+      ds=${rest##*:} # dataset
 
+      # TODO: there other ways to express ::1, but ignore them for now
+      if [ "$host" = "localhost" ] || \
+           [ "$host" = "::1" ] || \
+           echo "$host" | grep -Eq "$ipv4llptn"; then
+        host=""
+      fi
+
+      # TODO: The test for the host or IP is not that helpful, because many
+      # invalid IPs will match a valid hostname.
       ([ -z "$un" ] || echo "$un" | grep -Eq "$unptn") && \
-        echo "$host" | grep -Eq "$hostptn|$ipptn" && \
+        ([ -z "$host" ] || echo "$host" | \
+             grep -Eq "$hostptn|$ipv4ptn|$ipv6ptn") && \
         echo "$ds" | grep -Eq "$dsptn"
       ;;
     *)
       return 1
       ;;
-    # /*) # file
-    #     #d_type=f
-    #     if ! pathchk -pP -- "$1"; then
-    #         "Invalid destination: $1"
-    #         return 1
-    #     elif [ -e "$1" ]; then
-    #         warn "File destination exists."
-    #         return 1
-    #     elif ! [ -d "${1%[^/]*}" ]; then
-    #         warn "Directory ${1%[^/]*} does not exist."
-    #         return 1
-    #     elif ! [ -w "${1%[^/]*}" ]; then
-    #         warn "Directory ${1%[^/]*} is not writable."
-    #         return 1
-    #     fi
-    #     return 0
-    #     ;;
-    # *)
-    #     #d_type=l
-    #     if ! pathchk -pP -- "/$1"; then
-    #         "Invalid destination: $1"
-    #         return 1
-    #     else
-    #         return 0
-    #     fi
-    #     ;;
   esac
 }
 
@@ -255,14 +245,12 @@ rep_parse () {
       while getopts ":r:" opt; do
         case $opt in
           r)
-            for f in $(zfs list -H -o name -t filesystem,volume \
-                           -r "$OPTARG"); do
+            for f in $(zfs list -H -o name -t filesystem,volume -r "$OPTARG"); do
               rep "$f" "$dest"
             done
             ;;
           \?) fatal "Invalid rep_parse() option: -$OPTARG" ;;
-          :)  fatal "rep_parse() option -$OPTARG requires an \
-argument." ;;
+          :)  fatal "rep_parse() option -$OPTARG requires an argument." ;;
         esac
       done
       shift $(( OPTIND - 1 ))
@@ -275,18 +263,113 @@ argument." ;;
   fi
 }
 
+# replicate full stream
+# rep_full dataset
+rep_full() {
+  # variable            | set in..
+  # --------------------|------------
+  # host                | val_dest()
+  # v_opt               | rep_parse()
+  # fs,lsnap,rloc,sshto | rep()
+
+  if [ -z "$host" ]; then # replicating locally
+    [ -n "$v_opt" ] && echo "zfs send -p $lsnap | zfs recv -Fu $v_opt -d $rloc"
+    if zfs send -p "$lsnap" | zfs recv -Fu $v_opt -d "$rloc"; then
+      [ -n "$v_opt" ] && \
+        echo "zfs bookmark $lsnap $(echo "$lsnap" | sed 's/@/#/')"
+      zfs bookmark "$lsnap" "$(echo "$lsnap" | sed 's/@/#/')"
+      if [ "$(zfs get -H -o value canmount "$1")" = 'on' ]; then
+        if zfs set canmount=noauto "${rloc}${fs}"; then
+          echo "Set canmount=noauto for ${rloc}${fs}";
+        else warn "Failed to set canmount=noauto for ${rloc}${fs}"
+        fi
+      fi
+    else warn "Failed to replicate $lsnap to $sshto:$rloc"
+    fi
+  else # replicating remotely
+    [ -n "$v_opt" ] && \
+      echo "zfs send -p $lsnap | ssh $sshto \"sh -c 'zfs recv -Fu $v_opt \
+-d $rloc'\""
+    # interpret remote command with sh to avoid surprises with remote shell
+    if zfs send -p "$lsnap" | \
+        ssh "$sshto" "sh -c 'zfs recv -Fu $v_opt -d $rloc'"; then
+      [ -n "$v_opt" ] && \
+        echo "zfs bookmark $lsnap $(echo "$lsnap" | sed 's/@/#/')"
+      zfs bookmark "$lsnap" "$(echo "$lsnap" | sed 's/@/#/')"
+      if [ "$(zfs get -H -o value canmount "$1")" = 'on' ]; then
+        # interpret remote command with sh to avoid surprises with remote shell
+        if ssh "$sshto" "sh -c 'zfs set canmount=noauto ${rloc}${fs}'"
+        then
+          [ -n "$v_opt" ] && echo "Set canmount=noauto for $sshto:${rloc}${fs}"
+        else warn "Failed to set canmount=noauto for $sshto:${rloc}${fs}"
+        fi
+      fi
+    else warn "Failed to replicate $lsnap to $sshto:$rloc"
+    fi
+  fi
+}
+
+# replicate incremental stream
+# rep_incr dataset
+rep_incr() {
+  # variable                       | set in..
+  # -------------------------------|------------
+  # host                           | val_dest()
+  # F_opt,v_opt                    | rep_parse()
+  # lsnap,l_ts,rloc,rsnap,fs,sshto | rep()
+  r_ts=$(ss_ts "$(ss_st "$rsnap")")
+  if [ "$l_ts" -gt "$r_ts" ]; then
+    ## check if there is a local snapshot for the remote snapshot
+    if ! sp=$(zfs list -rd1 -t snap -H -o name "$1" | grep "$rsnap"); then
+      warn "Failed to find local snapshot for remote snapshot\
+${rloc}${fs}${rsnap}."
+      warn "Will attempt to fall back to a bookmark, but all\
+intermediary snapshots will not be sent."
+    fi
+    ## check if there is a bookmark for the remote snapshot
+    if [ -z "$sp" ] && ! sp=$(zfs list -rd1 -t bookmark -H -o name \
+                                  "$1" | grep "${rsnap#@}"); then
+      warn "Failed to find bookmark for remote snapshot ${rloc}${fs}${rsnap}."
+      warn "Failed to replicate $lsnap to $sshto:$rloc."
+    else
+      if echo "$sp" | grep -q '@'; then i='-I'; else i='-i'; fi
+      if [ -z "$host" ]; then # replicate locally
+        [ -n "$v_opt" ] && \
+          echo "zfs send $i $sp $lsnap | zfs recv -du $F_opt $v_opt $rloc"
+        if zfs send $i "$sp" "$lsnap" | zfs recv -du $F_opt $v_opt "$rloc"; then
+          [ -n "$v_opt" ] && \
+            echo "zfs bookmark $lsnap $(echo "$lsnap" | sed 's/@/#/')"
+          if zfs bookmark "$lsnap" "$(echo "$lsnap" | sed 's/@/#/')"; then
+            [ -n "$v_opt" ] && echo "Created bookmark for $lsnap."
+          else warn "Failed to create bookmark for $lsnap."
+          fi
+        else warn "Failed to replicate $lsnap to $sshto:$rloc."
+        fi
+      else # replicate remotely
+        [ -n "$v_opt" ] && \
+          echo "zfs send $i $sp $lsnap | ssh $sshto \"sh -c 'zfs recv -du \
+$F_opt $v_opt $rloc'\""
+        # interpret remote command with sh to avoid surprises with remote shell
+        if zfs send $i "$sp" "$lsnap" | \
+            ssh "$sshto" "sh -c 'zfs recv -du $F_opt $v_opt $rloc'"; then
+          [ -n "$v_opt" ] && \
+            echo "zfs bookmark $lsnap $(echo "$lsnap" | sed 's/@/#/')"
+          if zfs bookmark "$lsnap" "$(echo "$lsnap" | sed 's/@/#/')"; then
+            [ -n "$v_opt" ] && echo "Created bookmark for $lsnap."
+          else warn "Failed to create bookmark for $lsnap."
+          fi
+        else warn "Failed to replicate $lsnap to $sshto:$rloc."
+        fi
+      fi
+    fi
+  else
+    [ -n "$v_opt" ] && echo "$1: Nothing new to replicate."
+  fi
+}
+
 # rep dataset destination
 # destination contains no single quotes
 rep () {
-  # OPTIND=1
-  # while getopts ":r" opt; do
-  #     case $opt in
-  #         r)  r_opt='-R' ;;
-  #         \?) fatal "Invalid rep() option: -$OPTARG" ;;
-  #     esac
-  # done
-  # shift $(( OPTIND - 1 ))
-
   # Do not quote $D_opt, but ensure it does not contain spaces.
   if ! pool_ok $D_opt "${1%%/*}"; then
     warn "DID NOT replicate $1 because of pool state."
@@ -310,90 +393,30 @@ a resilver in progress."
                    | grep -m1 "@ZAP_${hn}_") || [ -z "$lsnap" ]; then
     warn "Failed to find the newest local snapshot for $1."
   else
-    #if [ "$d_type" = 'r' ]; then
-    sshto=${2%%:*}
-    rloc=${2#*:}
+    sshto=${2%:*}
+    rloc=${2##*:} # replication location
     l_ts=$(ss_ts "$(ss_st "$lsnap")")
     [ "${1#*/}" = "${1}" ] || fs="/${1#*/}"
-    # get the youngest remote snapshot for this dataset
-    # interpret remote command with sh to avoid surprises with remote shell
-    rsnap=$(ssh "$sshto" "sh -c 'zfs list -rd1 -H -tsnap -o name -S \
+    # get the youngest replicated snapshot for this dataset
+    # $host extracted in val_dest(). If it is empty, we are replicating locally.
+    if [ -z "$host" ]; then
+      rsnap=$(zfs list -rd1 -H -tsnap -o name -S creation "${rloc}${fs}" \
+                  2>/dev/null | head -n1 | sed 's/^.*@/@/')
+    else
+      # interpret remote command with sh to avoid surprises with remote shell
+      rsnap=$(ssh "$sshto" "sh -c 'zfs list -rd1 -H -tsnap -o name -S \
 creation ${rloc}${fs} 2>/dev/null | head -n1'" | sed 's/^.*@/@/')
-    if [ -z "$rsnap" ]; then
+    fi
+    if [ -z "$rsnap" ]; then # replicate full stream
       [ -n "$v_opt" ] && \
         echo "No remote snapshots found. Sending full stream."
-      [ -n "$v_opt" ] && \
-        echo "zfs send -p $lsnap | ssh $sshto \"sh -c 'zfs recv -Fu $v_opt -d \
-$rloc'\""
-      # interpret remote command with sh to avoid surprises with remote shell
-      if zfs send -p "$lsnap" | \
-          ssh "$sshto" "sh -c 'zfs recv -Fu $v_opt -d $rloc'"; then
-        [ -n "$v_opt" ] && \
-          echo "zfs bookmark $lsnap $(echo "$lsnap" | sed 's/@/#/')"
-        zfs bookmark "$lsnap" \
-            "$(echo "$lsnap" | sed 's/@/#/')"
-        if [ "$(zfs get -H -o value canmount "$1")" = 'on' ]; then
-          # interpret remote command with sh to avoid surprises with
-          # remote shell
-          if ssh "$sshto" "sh -c 'zfs set canmount=noauto ${rloc}${fs}'"
-          then
-            [ -n "$v_opt" ] && \
-              echo "Set canmount=noauto for $sshto:${rloc}${fs}";
-          else
-            warn "Failed to set canmount=noauto for $sshto:${rloc}${fs}"
-          fi
-        fi
-      else
-        warn "Failed to replicate $lsnap to $sshto:$rloc"
-      fi
+      # $host extracted in val_dest()
+      rep_full "$1"
     elif [ "${rsnap#*@ZAP_${hn}_}" = "${rsnap}" ]; then
       echo "Failed to replicate $1, because the youngest snapshot for \
 $sshto:$rloc/$fs was not created by zap."
     else # send incremental stream
-      r_ts=$(ss_ts "$(ss_st "$rsnap")")
-      # if [ -n "$v_opt" ]; then
-      #     printf "Newest snapshots:\nlocal: %s\nremote: %s\n" \
-        #            "$lsnap" "$sshto:${rloc}${fs}${rsnap}"
-      # fi
-      if [ "$l_ts" -gt "$r_ts" ]; then
-        ## check if there is a local snapshot for the remote snapshot
-        if ! sp=$(zfs list -rd1 -t snap -H -o name "$1" | grep "$rsnap"); then
-          warn "Failed to find local snapshot for remote snapshot \
-${rloc}${fs}${rsnap}."
-          warn "Will attempt to fall back to a bookmark, but all \
-intermediary snapshots will not be sent."
-        fi
-        ## check if there is a bookmark for the remote snapshot
-        if [ -z "$sp" ] && ! sp=$(zfs list -rd1 -t bookmark -H -o name \
-                                      "$1" | grep "${rsnap#@}"); then
-          warn "Failed to find bookmark for remote snapshot \
-${rloc}${fs}${rsnap}."
-          warn "Failed to replicate $lsnap to $sshto:$rloc."
-        else
-          if echo "$sp" | grep -q '@'; then i='-I'; else i='-i'; fi
-          [ -n "$v_opt" ] && \
-            echo "zfs send $i $sp $lsnap | ssh $sshto \"sh -c 'zfs recv -du \
-$F_opt $v_opt $rloc'\""
-          # interpret remote command with sh to avoid surprises with
-          # remote shell
-          if zfs send $i "$sp" "$lsnap" | \
-              ssh "$sshto" "sh -c 'zfs recv -du $F_opt $v_opt $rloc'"; then
-            [ -n "$v_opt" ] && \
-              echo "zfs bookmark $lsnap $(echo "$lsnap" | sed 's/@/#/')"
-            if zfs bookmark "$lsnap" \
-                   "$(echo "$lsnap" | sed 's/@/#/')"; then
-              [ -n "$v_opt" ] && \
-                echo "Created bookmark for $lsnap."
-            else
-              warn "Failed to create bookmark for $lsnap."
-            fi
-          else
-            warn "Failed to replicate $lsnap to $sshto:$rloc."
-          fi
-        fi
-      else
-        [ -n "$v_opt" ] && echo "$1: Nothing new to replicate."
-      fi
+      rep_incr "$1"
     fi
   fi
 }
@@ -496,12 +519,15 @@ hn=$(hostname -s)
 # portability of {} in egrep is uncertain
 dsptn='^\w[[:alnum:]_.:-]*(/[[:alnum:]_\.:-]+)*$'
 hostptn='^((\w|\w[[:alnum:]-]*\w)\.)*(\w|\w[[:alnum:]-]*\w)$'
-ipptn='^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])$'
+# https://stackoverflow.com/questions/53497/regular-expression-that-matches-valid-ipv6-addresses
+ipv4ptn='^((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])\.){3,3}(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])$'
+ipv6ptn='^(([0-9a-fA-F]{1,4}:){7,7}[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,7}:|([0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,5}(:[0-9a-fA-F]{1,4}){1,2}|([0-9a-fA-F]{1,4}:){1,4}(:[0-9a-fA-F]{1,4}){1,3}|([0-9a-fA-F]{1,4}:){1,3}(:[0-9a-fA-F]{1,4}){1,4}|([0-9a-fA-F]{1,4}:){1,2}(:[0-9a-fA-F]{1,4}){1,5}|[0-9a-fA-F]{1,4}:((:[0-9a-fA-F]{1,4}){1,6})|:((:[0-9a-fA-F]{1,4}){1,7}|:)|fe80:(:[0-9a-fA-F]{0,4}){0,4}%[0-9a-zA-Z]{1,}|::(ffff(:0{1,4}){0,1}:){0,1}((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])\.){3,3}(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])|([0-9a-fA-F]{1,4}:){1,4}:((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])\.){3,3}(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9]))$'
+ipv4llptn='^127\.((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])\.){2,2}(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])$'
 ttlptn='^[0-9]{1,4}[dwmy]$'
 unptn='^[[:alnum:]_][[:alnum:]_-]{0,31}$'
 zptn="@ZAP_(${hn})_..*--[0-9]{1,4}[dwmy]"
 
-readonly version=0.7.4
+readonly version=0.7.5b1
 
 case $1 in
   snap|snapshot) shift; snap_parse "$@" ;;
