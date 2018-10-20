@@ -89,12 +89,14 @@ pool_resilver () {
   return 1
 }
 
+## Snapshot snap time
 ss_st () {
   # Using an extended regexp here, because $hn may contain a list of
   # alternatives like awarnach|bravo|phe.
   echo "$1" | sed -r "s/^.*@ZAP_(${hn})_//;s/--[0-9]{1,4}[dwmy]$//;s/p/+/"
 }
 
+## Snapshot time in seconds since epoch
 ss_ts () {
   case $os in
     'Darwin'|'FreeBSD')
