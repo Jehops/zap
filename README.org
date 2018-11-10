@@ -6,7 +6,7 @@
 ** Synopsis
    =# zap snap|snapshot [-DLSv] TTL [[-r] dataset]...=
 
-   =# zap rep|replicate [-DFLSv] [[user@]host:parent_dataset [-r] dataset [[-r] dataset]...]=
+   =# zap rep|replicate [-DFLSv] [[[user@]host:]parent_dataset [-r] dataset [[-r] dataset]...]=
 
    =# zap destroy [-Dlsv] [host[,host]...]=
 
@@ -78,7 +78,7 @@
 
    =rep= | =replicate=
 
-   Use the =rep= subcommand to replicate datasets.  If a destination and datasets are not supplied on the command line, datasets with a destination set in the =zap:rep= user property are replicated.  If the =canmount= property of the local dataset is set to =on=, after replication an attempt is made to set =canmount= to =noauto= on the remote side.  This is done to prevent mountpoint collisions.  If =host= is =localhost=, =127.0.0.1=, or =::1=, then =ssh= will not be used.
+   Use the =rep= subcommand to replicate datasets.  If a destination and datasets are not supplied on the command line, datasets with a destination set in the =zap:rep= user property are replicated.  If the destination does not contain a =host=, or if the supplied host one of =localhost=, =127.x.x.x=, or =::1=, then =ssh= will not be used.  If the =canmount= property of the local dataset is set to =on=, after replication an attempt is made to set =canmount= to =noauto= on the remote side.  This is done to prevent mountpoint collisions.
 
    =destroy=
 

@@ -156,7 +156,8 @@ val_dest () {
         echo "$ds" | grep -Eq "$dsptn"
       ;;
     *)
-      return 1
+      ds="$1"
+      echo "$ds" | grep -Eq "$dsptn"
       ;;
   esac
 }

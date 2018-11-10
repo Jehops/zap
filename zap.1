@@ -1,4 +1,4 @@
-.Dd October 03, 2017
+.Dd November 10, 2018
 .Dt ZAP 1
 .Os
 .Sh NAME
@@ -14,8 +14,7 @@
 .Nm
 .Ar rep Ns | Ns Ar replicate
 .Op Fl DFLSv
-.Oo Op Ar user Ns @ Ns
-.Ar host Ns : Ns
+.Oo Oo Op Ar user Ns @ Oc Ns Ar host Ns : Ns
 .Ar parent_dataset
 .Op Fl r
 .Ar dataset
@@ -35,8 +34,8 @@ configuration files.  All parameters are supplied on the command line or in zfs
 properties and all snapshot information is stored in snapshot names.
 .Pp
 .Nm
-will not interfere with manually created snapshots or snapshots from other tools.  It
-will only operate on snapshots it creates.
+will not interfere with manually created snapshots or snapshots from other
+tools.  It will only operate on snapshots it creates.
 .Pp
 If the pool is in a DEGRADED state, then snapshots will still be created,
 replicated, and destroyed unless
@@ -76,11 +75,17 @@ Use the
 subcommand to replicate datasets.  If a destination and datasets are not
 supplied on the command line, datasets with a destination set in the
 .Sy zap:rep
-user property are replicated.  If the supplied host is
+user property are replicated.  If the destination does not contain a
+.Sy host
+.Ns , or if the supplied host is
 .Sy localhost
-or a loopback address, then any
+.Ns ,
+.Sy 127.x.x.x
+.Ns , or
+.Sy ::1
+.Ns , then any
 .Sy user@
-is ignored and the dataset is locally replicated.  If the
+is ignored and ssh is not used.  If the
 .Sy canmount
 property of the local dataset is set to
 .Sy on Ns ,
