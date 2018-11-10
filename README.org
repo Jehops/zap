@@ -33,7 +33,7 @@
    # zfs set zap:rep='zap@bravo:zback/phe' zroot/ROOT zroot/usr/home/jrm
    # zap rep -v
 #+END_SRC
-   Replicate datasets (recursively for zroot/ROOT) to the remote host bravo, under the =rback/phe= dataset, but this time specify the datasets on the command line.  If you use a non-default ssh port, specify it in =~/.ssh/config=.  If =host= is =localhost=, =127.0.0.1=, or =::1=, then =ssh= will not be used.
+   Replicate datasets (recursively for zroot/ROOT) to the remote host bravo, under the =rback/phe= dataset, but this time specify the datasets on the command line.  If you use a non-default ssh port, specify it in =~/.ssh/config=.  If =host= is =localhost=, =127.x.x.x=, or =::1=, then =ssh= will not be used.
 #+BEGIN_SRC sh
    # zap rep zap@bravo:rback/phe -r zroot/ROOT zroot/usr/home/jrm
 #+END_SRC

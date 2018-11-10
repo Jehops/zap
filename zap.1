@@ -76,7 +76,11 @@ Use the
 subcommand to replicate datasets.  If a destination and datasets are not
 supplied on the command line, datasets with a destination set in the
 .Sy zap:rep
-user property are replicated.  If the
+user property are replicated.  If the supplied host is
+.Sy localhost
+or a loopback address, then any
+.Sy user@
+is ignored and the dataset is locally replicated.  If the
 .Sy canmount
 property of the local dataset is set to
 .Sy on Ns ,
