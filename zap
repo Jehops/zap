@@ -274,8 +274,9 @@ rep_full() {
   # fs,lsnap,rloc,sshto | rep()
 
   if [ -z "$host" ]; then # replicating locally
-    [ -n "$v_opt" ] && echo "zfs send -p $lsnap | zfs recv -Fu $v_opt -d $rloc"
-    if zfs send -p "$lsnap" | zfs recv -Fu $v_opt -d "$rloc"; then
+    [ -n "$v_opt" ] && echo "zfs send -Lcep $lsnap | zfs recv -Fu $v_opt -d " \
+                            "$rloc"
+    if zfs send -Lcep "$lsnap" | zfs recv -Fu $v_opt -d "$rloc"; then
       [ -n "$v_opt" ] && \
         echo "zfs bookmark $lsnap $(echo "$lsnap" | sed 's/@/#/')"
       zfs bookmark "$lsnap" "$(echo "$lsnap" | sed 's/@/#/')"
@@ -289,10 +290,10 @@ rep_full() {
     fi
   else # replicating remotely
     [ -n "$v_opt" ] && \
-      echo "zfs send -p $lsnap | ssh $sshto \"sh -c 'zfs recv -Fu $v_opt \
+      echo "zfs send -Lcep $lsnap | ssh $sshto \"sh -c 'zfs recv -Fu $v_opt \
 -d $rloc'\""
     # interpret remote command with sh to avoid surprises with remote shell
-    if zfs send -p "$lsnap" | \
+    if zfs send -Lcep "$lsnap" | \
         ssh "$sshto" "sh -c 'zfs recv -Fu $v_opt -d $rloc'"; then
       [ -n "$v_opt" ] && \
         echo "zfs bookmark $lsnap $(echo "$lsnap" | sed 's/@/#/')"
@@ -336,8 +337,9 @@ intermediary snapshots will not be sent."
       if echo "$sp" | grep -q '@'; then i='-I'; else i='-i'; fi
       if [ -z "$host" ]; then # replicate locally
         [ -n "$v_opt" ] && \
-          echo "zfs send $i $sp $lsnap | zfs recv -du $F_opt $v_opt $rloc"
-        if zfs send $i "$sp" "$lsnap" | zfs recv -du $F_opt $v_opt "$rloc"; then
+          echo "zfs send -Lce $i $sp $lsnap | zfs recv -du $F_opt $v_opt $rloc"
+        if zfs send -Lce $i "$sp" "$lsnap" | zfs recv -du $F_opt $v_opt \
+                                                 "$rloc"; then
           [ -n "$v_opt" ] && \
             echo "zfs bookmark $lsnap $(echo "$lsnap" | sed 's/@/#/')"
           if zfs bookmark "$lsnap" "$(echo "$lsnap" | sed 's/@/#/')"; then
@@ -348,10 +350,10 @@ intermediary snapshots will not be sent."
         fi
       else # replicate remotely
         [ -n "$v_opt" ] && \
-          echo "zfs send $i $sp $lsnap | ssh $sshto \"sh -c 'zfs recv -du \
+          echo "zfs send -Lce $i $sp $lsnap | ssh $sshto \"sh -c 'zfs recv -du \
 $F_opt $v_opt $rloc'\""
         # interpret remote command with sh to avoid surprises with remote shell
-        if zfs send $i "$sp" "$lsnap" | \
+        if zfs send -Lce $i "$sp" "$lsnap" | \
             ssh "$sshto" "sh -c 'zfs recv -du $F_opt $v_opt $rloc'"; then
           [ -n "$v_opt" ] && \
             echo "zfs bookmark $lsnap $(echo "$lsnap" | sed 's/@/#/')"
