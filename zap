@@ -524,6 +524,10 @@ esac
 
 date=$(date '+%Y-%m-%dT%H:%M:%S%z' | sed 's/+/p/')
 hn=$(hostname -s)
+if [ -z "$hn" ]; then
+  warn "Failed to find hostname."
+  exit 1
+fi
 
 # extended REs for egrep
 # portability of {} in egrep is uncertain
