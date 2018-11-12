@@ -274,12 +274,14 @@ rep_full() {
   # fs,lsnap,rloc,sshto | rep()
 
   if [ -z "$host" ]; then # replicating locally
-    [ -n "$v_opt" ] && echo "zfs send -Lcep $lsnap | zfs recv -Fu $v_opt -d " \
-                            "$rloc"
+    [ -n "$v_opt" ] && \
+      echo "zfs send -Lcep $lsnap | zfs recv -Fu $v_opt -d $rloc"
     if zfs send -Lcep "$lsnap" | zfs recv -Fu $v_opt -d "$rloc"; then
       [ -n "$v_opt" ] && \
         echo "zfs bookmark $lsnap $(echo "$lsnap" | sed 's/@/#/')"
       zfs bookmark "$lsnap" "$(echo "$lsnap" | sed 's/@/#/')"
+      zfs inherit zap:snap "${rloc}${fs}"
+      zfs inherit zap:rep "${rloc}${fs}"
       if [ "$(zfs get -H -o value canmount "$1")" = 'on' ]; then
         if zfs set canmount=noauto "${rloc}${fs}"; then
           echo "Set canmount=noauto for ${rloc}${fs}";
@@ -292,16 +294,22 @@ rep_full() {
     [ -n "$v_opt" ] && \
       echo "zfs send -Lcep $lsnap | ssh $sshto \"sh -c 'zfs recv -Fu $v_opt \
 -d $rloc'\""
-    # interpret remote command with sh to avoid surprises with remote shell
+    # interpret remote commands with sh to avoid surprises with remote shell
     if zfs send -Lcep "$lsnap" | \
         ssh "$sshto" "sh -c 'zfs recv -Fu $v_opt -d $rloc'"; then
       [ -n "$v_opt" ] && \
         echo "zfs bookmark $lsnap $(echo "$lsnap" | sed 's/@/#/')"
       zfs bookmark "$lsnap" "$(echo "$lsnap" | sed 's/@/#/')"
+      if ssh "$sshto" "sh -c 'zfs inherit zap:snap ${rloc}${fs}'"; then
+        [ -n "$v_opt" ] && echo "zfs inherit zap:snap for $sshto:${rloc}${fs}"
+      else warn "Failed to inherit zap:snap for for $sshto:${rloc}${fs}"
+      fi
+      if ssh "$sshto" "sh -c 'zfs inherit zap:snap ${rloc}${fs}'"; then
+        [ -n "$v_opt" ] && echo "zfs inherit zap:snap for $sshto:${rloc}${fs}"
+      else warn "Failed to inherit zap:rep for for $sshto:${rloc}${fs}"
+      fi
       if [ "$(zfs get -H -o value canmount "$1")" = 'on' ]; then
-        # interpret remote command with sh to avoid surprises with remote shell
-        if ssh "$sshto" "sh -c 'zfs set canmount=noauto ${rloc}${fs}'"
-        then
+        if ssh "$sshto" "sh -c 'zfs set canmount=noauto ${rloc}${fs}'"; then
           [ -n "$v_opt" ] && echo "Set canmount=noauto for $sshto:${rloc}${fs}"
         else warn "Failed to set canmount=noauto for $sshto:${rloc}${fs}"
         fi
@@ -373,6 +381,7 @@ $F_opt $v_opt $rloc'\""
 # rep dataset destination
 # destination contains no single quotes
 rep () {
+  tdest=$(echo "$2" | tr '[:upper:]' '[:lower:]')
   # Do not quote $D_opt, but ensure it does not contain spaces.
   if ! pool_ok $D_opt "${1%%/*}"; then
     warn "DID NOT replicate $1 because of pool state."
@@ -387,11 +396,9 @@ a resilver in progress."
     warn "Dataset $1 does not exist."
     warn "Failed to replicate $1."
   elif ! val_dest "$2"; then
-    tdest=$(echo "$2" | tr '[:upper:]' '[:lower:]')
-    if [ "$tdest" != '-' ] && [ "$tdest" != 'off' ]; then
-      warn "Invalid remote replication location: $tdest."
-      warn "Failed to replicate $1."
-    fi
+    [ "$tdest" = '-' ] || \
+      warn "Invalid destination: $2.  Failed to replicate $1."
+  elif [ "$tdest" = 'off' ]; then :
   elif ! lsnap=$(zfs list -rd1 -H -tsnap -o name -S creation "$1" \
                    | grep -m1 "@ZAP_${hn}_") || [ -z "$lsnap" ]; then
     warn "Failed to find the newest local snapshot for $1."
