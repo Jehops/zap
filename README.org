@@ -113,7 +113,7 @@ and =rep= subcommands.
    - Tobias Kortkamp <t@tobik.me>
    - David Samms <dsamms@nw-ds.com>
    - Victor Naumov <vicnaumov@gmail.com>
-   - Dries Michiels
+   - Dries Michiels <driesm.michiels@gmail.com>
 ** License
    zap is released under a BSD 2-Clause License.  Refer to the header of each
    source file for details.
