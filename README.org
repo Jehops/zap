@@ -108,11 +108,12 @@ and =rep= subcommands.
 
     =-v=  Be verbose.
 
-** Authors and Contributors
+** Author and Contributors
    - Joseph Mingrone <jrm@ftfl.ca>
    - Tobias Kortkamp <t@tobik.me>
    - David Samms <dsamms@nw-ds.com>
    - Victor Naumov <vicnaumov@gmail.com>
+   - Dries Michiels
 ** License
    zap is released under a BSD 2-Clause License.  Refer to the header of each
    source file for details.
