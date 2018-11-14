@@ -33,7 +33,7 @@
    # zfs set zap:rep='zap@bravo:zback/phe' zroot/ROOT zroot/usr/home/jrm
    # zap rep -v
 #+END_SRC
-   Replicate datasets (recursively for zroot/ROOT) to the remote host bravo, under the =rback/phe= dataset, but this time specify the datasets on the command line.  If you use a non-default ssh port, specify it in =~/.ssh/config=.  If =host= is =localhost=, =127.x.x.x=, or =::1=, then =ssh= will not be used.
+   Replicate datasets (recursively for zroot/ROOT) to the remote host bravo, under the =rback/phe= dataset, but this time specify the datasets on the command line.  If you use a non-default ssh port, specify it in =~/.ssh/config=.
 #+BEGIN_SRC sh
    # zap rep zap@bravo:rback/phe -r zroot/ROOT zroot/usr/home/jrm
 #+END_SRC
@@ -78,7 +78,7 @@
 
    =rep= | =replicate=
 
-   Use the =rep= subcommand to replicate datasets.  If a destination and datasets are not supplied on the command line, datasets with a destination set in the =zap:rep= user property are replicated.  If the destination does not contain a =host=, or if the supplied host one of =localhost=, =127.x.x.x=, or =::1=, then =ssh= will not be used.  If the =canmount= property of the local dataset is set to =on=, after replication an attempt is made to set =canmount= to =noauto= on the remote side.  This is done to prevent mountpoint collisions.
+   Use the =rep= subcommand to replicate datasets.  If a destination and datasets are not supplied on the command line, datasets with a destination set in the =zap:rep= user property are replicated.  If the destination does not contain a =host=, or if the supplied host is one of =localhost=, =127.x.x.x=, or =::1=, then any =user@= is ignored and =ssh= is not be used.  If the =canmount= property of the local dataset is set to =on=, after replication an attempt is made to set =canmount= to =noauto= on the remote side.  This is done to prevent mountpoint collisions.
 
    =destroy=
 
