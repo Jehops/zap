@@ -314,15 +314,12 @@ rep_full() {
   # fs,lsnap            | rep()
 
   if [ -z "$host" ]; then # replicating locally
-    zfs get -H -t filesystem zap:snap testpool/test1
     [ -n "$v_opt" ] && \
       echo "zfs send -Lcep $lsnap | zfs recv -Fu $v_opt -d $rloc"
     if zfs send -Lcep "$lsnap" | zfs recv -Fu $v_opt -d "$rloc"; then
       [ -n "$v_opt" ] && \
         echo "zfs bookmark $lsnap $(echo "$lsnap" | sed 's/@/#/')"
       zfs bookmark "$lsnap" "$(echo "$lsnap" | sed 's/@/#/')"
-      #zfs inherit zap:snap "${rloc}${fs}"
-      #zfs inherit zap:rep "${rloc}${fs}"
       if [ "$(zfs get -H -o value canmount "$1")" = 'on' ]; then
         if zfs set canmount=noauto "${rloc}${fs}"; then
           echo "Set canmount=noauto for ${rloc}${fs}";
