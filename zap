@@ -326,6 +326,14 @@ rep_full() {
         else warn "Failed to set canmount=noauto for ${rloc}${fs}"
         fi
       fi
+      if zfs set zap:snap=off "${rloc}${fs}"; then
+        [ -n "$v_opt" ] && echo "Set zap:snap=off for ${rloc}${fs}";
+      else warn "Failed to set zap:snap=offfor ${rloc}${fs}"
+      fi
+      if zfs set zap:rep=off "${rloc}${fs}"; then
+        [ -n "$v_opt" ] && echo "Set zap:rep=off for ${rloc}${fs}";
+      else warn "Failed to set zap:rep=off for ${rloc}${fs}"
+      fi
     else warn "Failed to replicate $lsnap to $sshto:$rloc"
     fi
   else # replicating remotely
@@ -337,13 +345,13 @@ rep_full() {
       [ -n "$v_opt" ] && \
         echo "zfs bookmark $lsnap $(echo "$lsnap" | sed 's/@/#/')"
       zfs bookmark "$lsnap" "$(echo "$lsnap" | sed 's/@/#/')"
-      if ssh "$sshto" "sh -c 'zfs inherit zap:snap ${rloc}${fs}'"; then
-        [ -n "$v_opt" ] && echo "zfs inherit zap:snap for $sshto:${rloc}${fs}"
-      else warn "Failed to inherit zap:snap for for $sshto:${rloc}${fs}"
+      if ssh "$sshto" "sh -c 'zfs set zap:snap=off ${rloc}${fs}'"; then
+        [ -n "$v_opt" ] && echo "zfs set zap:snap=off for $sshto:${rloc}${fs}"
+      else warn "Failed to set zap:snap=off for for $sshto:${rloc}${fs}"
       fi
-      if ssh "$sshto" "sh -c 'zfs inherit zap:snap ${rloc}${fs}'"; then
-        [ -n "$v_opt" ] && echo "zfs inherit zap:snap for $sshto:${rloc}${fs}"
-      else warn "Failed to inherit zap:rep for for $sshto:${rloc}${fs}"
+      if ssh "$sshto" "sh -c 'zfs set zap:rep=off ${rloc}${fs}'"; then
+        [ -n "$v_opt" ] && echo "zfs set zap:rep=off for $sshto:${rloc}${fs}"
+      else warn "Failed to set zap:rep=off for for $sshto:${rloc}${fs}"
       fi
       if [ "$(zfs get -H -o value canmount "$1")" = 'on' ]; then
         if ssh "$sshto" "sh -c 'zfs set canmount=noauto ${rloc}${fs}'"; then
