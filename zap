@@ -219,7 +219,7 @@ time could not be determined."
   done
 }
 
-# rep_parse [-DLSv] [destination [-r] dataset [[-r] dataset]...]
+# rep_parse [-DFLSv] [destination [-r] dataset [[-r] dataset]...]
 rep_parse () {
   while getopts ":DFLSv" opt; do
     case $opt in
