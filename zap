@@ -49,11 +49,10 @@ is_pint () {
     ''|*[!0-9]*|0*)
       return 1 ;;
   esac
-
   return 0
 }
 
-# pool_ok [-D] pool
+# pool_ok [-D] <pool>
 # If the -D option is supplied, do not consider the DEGRADED state ok.
 pool_ok () {
   skip='state: (FAULTED|OFFLINE|REMOVED|UNAVAIL)'
@@ -69,34 +68,36 @@ pool_ok () {
   if zpool status "$1" | grep -Eq "$skip"; then
     return 1
   fi
-
   return 0
 }
 
+# pool_scrub <pool>
 pool_scrub () {
   if zpool status "$1" | grep -q "scrub in progress"; then
     return 0
   fi
-
   return 1
 }
 
+# pool_resilver <pool>
 pool_resilver () {
   if zpool status "$1" | grep -q "scan: resilver in progress"; then
     return 0
   fi
-
   return 1
 }
 
-## Snapshot snap time
+# ss_st <snapshot>
+# Extract zap snapshot time.
 ss_st () {
   # Using an extended regexp here, because $hn may contain a list of
   # alternatives like awarnach|bravo|phe.
   echo "$1" | sed -r "s/^.*@ZAP_(${hn})_//;s/--[0-9]{1,4}[dwmy]$//;s/p/+/"
 }
 
-## Snapshot time in seconds since epoch
+# ss_ts <YYYY-MM-DDTHH:MM:SS±hhmm>
+# Return a zap snapshot timestamp (seconds since epoch) given snapshot time in
+# the format YYYY-MM-DDTHH:MM:SS±hhmm.
 ss_ts () {
   case $os in
     'Darwin'|'FreeBSD')
@@ -109,6 +110,8 @@ ss_ts () {
   esac
 }
 
+# ttl2s <time-to-live>
+# Return a zap snapshot time-to-live argument to seconds.
 ttl2s () {
   echo "$1" | sed 's/d/*86400/;s/w/*604800/;s/m/*2592000/;s/y/*31536000/' | bc
 }
@@ -126,6 +129,7 @@ usage:
 EOF
 }
 
+# val_dest <destination>
 val_dest () {
   case $1 in
     *:*)
@@ -181,8 +185,7 @@ destroy () {
 
   if [ -n "$*" ]; then
     # One or more hostnames were specified, so delete snapshots for those
-    # hosts.  Using an extended regexp here, because sed in ss_st() requires
-    # it for (host1|host2...).
+    # hosts.
     hn=$(echo "$*" | sed 's/[[:space:]]//g;s/,/|/g')
     zptn="@ZAP_(${hn})_..*--[0-9]{1,4}[dwmy]"
   fi
@@ -305,7 +308,7 @@ zap:snap $rloc'")
 }
 
 # replicate full stream
-# rep_full dataset
+# rep_full <dataset>
 rep_full() {
   # variable            | set in..
   # --------------------|------------
@@ -365,7 +368,7 @@ rep_full() {
 }
 
 # replicate incremental stream
-# rep_incr dataset
+# rep_incr <dataset>
 rep_incr() {
   # variable                       | set in..
   # -------------------------------|------------
@@ -423,8 +426,8 @@ $F_opt $v_opt $rloc'\""
   fi
 }
 
-# rep dataset destination
 # destination contains no single quotes
+# rep <dataset> <destination>
 rep () {
   # Do not quote $D_opt, but ensure it does not contain spaces.
   if ! pool_ok $D_opt "${1%%/*}"; then
