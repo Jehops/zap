@@ -146,9 +146,7 @@ val_dest () {
       ds=${rest##*:} # dataset
 
       # TODO: there other ways to express ::1, but ignore them for now
-      if [ "$host" = "localhost" ] || \
-           [ "$host" = "::1" ] || \
-           echo "$host" | grep -Eq "$ipv4llptn"; then
+      if [ "$host" = "localhost" ] || echo "$host" | grep -Eq "$iplbptn"; then
         host=""
       fi
 
