@@ -107,6 +107,10 @@ ss_ts () {
       gdate=$(echo "$1" | sed 's/T/ /')
       date -d"$gdate" +%s
       ;;
+    'NetBSD')
+      ndate=$(echo "$1" | sed 's/\+.*//;s/[T-]//g;s/://;s/:/./')
+      date -j "$ndate" +%s
+      ;;
   esac
 }
 
@@ -220,10 +224,11 @@ time could not be determined."
   done
 }
 
-# rep_parse [-DFLSv] [destination [-r] dataset [[-r] dataset]...]
+# rep_parse [-CDFLSv] [destination [-r] dataset [[-r] dataset]...]
 rep_parse () {
-  while getopts ":DFLSv" opt; do
+  while getopts ":CDFLSv" opt; do
     case $opt in
+      C)  C_opt=1           ;;
       D)  D_opt='-D'        ;;
       L)  L_opt=1           ;;
       S)  S_opt=1           ;;
@@ -234,6 +239,11 @@ rep_parse () {
   done
   shift $(( OPTIND - 1 ))
 
+  if [ -n "$C_opt" ]; then # user has request no compression
+    C_opt=
+  else # use compression by default
+    C_opt='-c'
+  fi
   [ -n "$v_opt" ] && printf '%s\nReplicating...\n' "$(date)"
   if [ -z "$*" ]; then # use zap:rep property to replicate
     for f in $(zfs list -H -o name -t volume,filesystem); do
@@ -316,8 +326,8 @@ rep_full() {
 
   if [ -z "$host" ]; then # replicating locally
     [ -n "$v_opt" ] && \
-      echo "zfs send -Lcep $lsnap | zfs recv -Fu $v_opt -d $rloc"
-    if zfs send -Lcep "$lsnap" | zfs recv -Fu $v_opt -d "$rloc"; then
+      echo "zfs send -Lep $C_opt $lsnap | zfs recv -Fu $v_opt -d $rloc"
+    if zfs send -Lep $C_opt "$lsnap" | zfs recv -Fu $v_opt -d "$rloc"; then
       [ -n "$v_opt" ] && \
         echo "zfs bookmark $lsnap $(echo "$lsnap" | sed 's/@/#/')"
       zfs bookmark "$lsnap" "$(echo "$lsnap" | sed 's/@/#/')"
@@ -339,9 +349,9 @@ rep_full() {
     fi
   else # replicating remotely
     [ -n "$v_opt" ] && \
-      echo "zfs send -Lcep $lsnap | ssh $sshto \"sh -c 'zfs recv -Fu $v_opt \
--d $rloc'\""
-    if zfs send -Lcep "$lsnap" | \
+      echo "zfs send -Lep $C_opt $lsnap | ssh $sshto \"sh -c 'zfs recv -Fu \
+$v_opt -d $rloc'\""
+    if zfs send -Lep $C_opt "$lsnap" | \
         ssh "$sshto" "sh -c 'zfs recv -Fu $v_opt -d $rloc'"; then
       [ -n "$v_opt" ] && \
         echo "zfs bookmark $lsnap $(echo "$lsnap" | sed 's/@/#/')"
@@ -392,8 +402,9 @@ intermediary snapshots will not be sent."
       if echo "$sp" | grep -q '@'; then i='-I'; else i='-i'; fi
       if [ -z "$host" ]; then # replicate locally
         [ -n "$v_opt" ] && \
-          echo "zfs send -Lce $i $sp $lsnap | zfs recv -du $F_opt $v_opt $rloc"
-        if zfs send -Lce $i "$sp" "$lsnap" | zfs recv -du $F_opt $v_opt \
+          echo "zfs send -Le $C_opt $i $sp $lsnap | zfs recv -du $F_opt $v_opt \
+$rloc"
+        if zfs send -Le $C_opt $i "$sp" "$lsnap" | zfs recv -du $F_opt $v_opt \
                                                  "$rloc"; then
           [ -n "$v_opt" ] && \
             echo "zfs bookmark $lsnap $(echo "$lsnap" | sed 's/@/#/')"
@@ -405,9 +416,9 @@ intermediary snapshots will not be sent."
         fi
       else # replicate remotely
         [ -n "$v_opt" ] && \
-          echo "zfs send -Lce $i $sp $lsnap | ssh $sshto \"sh -c 'zfs recv -du \
-$F_opt $v_opt $rloc'\""
-        if zfs send -Lce $i "$sp" "$lsnap" | \
+          echo "zfs send -Le $C_opt $i $sp $lsnap | ssh $sshto \"sh -c \
+'zfs recv -du $F_opt $v_opt $rloc'\""
+        if zfs send -Le $C_opt $i "$sp" "$lsnap" | \
             ssh "$sshto" "sh -c 'zfs recv -du $F_opt $v_opt $rloc'"; then
           [ -n "$v_opt" ] && \
             echo "zfs bookmark $lsnap $(echo "$lsnap" | sed 's/@/#/')"

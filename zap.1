@@ -1,4 +1,4 @@
-.Dd November 10, 2018
+.Dd October 27, 2020
 .Dt ZAP 1
 .Os
 .Sh NAME
@@ -13,7 +13,7 @@
 .Ar dataset Oc Ns ...
 .Nm
 .Ar rep Ns | Ns Ar replicate
-.Op Fl DFLSv
+.Op Fl CDFLSv
 .Oo Oo Op Ar user Ns @ Oc Ns Ar host Ns : Ns
 .Ar parent_dataset
 .Op Fl r
@@ -105,6 +105,12 @@ specified without any domain information, that is, as returned by
 .Ic hostname -s Ns .
 .Sh OPTIONS
 .Bl -tag -width "12345678"
+.It Fl C
+Do not supply
+.Ic -c
+to
+.Ar zfs send Ns
+\&.  This option is unsupported on some systems, such as Debian 9 and NetBSD 9.
 .It Fl D
 Do not operate on snapshots when the pool is in a DEGRADED state.
 .It Fl F
