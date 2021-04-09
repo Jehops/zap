@@ -349,10 +349,10 @@ rep_full() {
     fi
   else # replicating remotely
     [ -n "$v_opt" ] && \
-      echo "zfs send -Lep $C_opt $lsnap | ssh $sshto \"sh -c 'zfs recv -Fu \
+      echo "zfs send -Lep $C_opt $lsnap | mbuffer -s 128k -m 1G -q | ssh $sshto \"sh -c 'mbuffer -s 128k -m 1G -q |zfs recv -Fu \
 $v_opt -d $rloc'\""
-    if zfs send -Lep $C_opt "$lsnap" | \
-        ssh "$sshto" "sh -c 'zfs recv -Fu $v_opt -d $rloc'"; then
+    if zfs send -Lep $C_opt "$lsnap" | mbuffer -s 128k -m 1G -q | \
+        ssh "$sshto" "sh -c 'mbuffer -s 128k -m 1G -q | zfs recv -Fu $v_opt -d $rloc'"; then
       [ -n "$v_opt" ] && \
         echo "zfs bookmark $lsnap $(echo "$lsnap" | sed 's/@/#/')"
       zfs bookmark "$lsnap" "$(echo "$lsnap" | sed 's/@/#/')"
@@ -416,10 +416,10 @@ $rloc"
         fi
       else # replicate remotely
         [ -n "$v_opt" ] && \
-          echo "zfs send -Le $C_opt $i $sp $lsnap | ssh $sshto \"sh -c \
-'zfs recv -du $F_opt $v_opt $rloc'\""
-        if zfs send -Le $C_opt $i "$sp" "$lsnap" | \
-            ssh "$sshto" "sh -c 'zfs recv -du $F_opt $v_opt $rloc'"; then
+          echo "zfs send -Le $C_opt $i $sp $lsnap | mbuffer -s 128k -m 1G -q | ssh $sshto \"sh -c \
+'mbuffer -s 128k -m 1G -q | zfs recv -du $F_opt $v_opt $rloc'\""
+        if zfs send -Le $C_opt $i "$sp" "$lsnap" | mbuffer -s 128k -m 1G -q | \
+            ssh "$sshto" "sh -c 'mbuffer -s 128k -m 1G -q | zfs recv -du $F_opt $v_opt $rloc'"; then
           [ -n "$v_opt" ] && \
             echo "zfs bookmark $lsnap $(echo "$lsnap" | sed 's/@/#/')"
           if zfs bookmark "$lsnap" "$(echo "$lsnap" | sed 's/@/#/')"; then
