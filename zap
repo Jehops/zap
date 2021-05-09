@@ -224,9 +224,9 @@ time could not be determined."
   done
 }
 
-# rep_parse [-CDFLSv] [destination [-r] dataset [[-r] dataset]...]
+# rep_parse [-CDFLSv] [-h host] [destination [-r] dataset [[-r] dataset]...]
 rep_parse () {
-  while getopts ":CDFLSv" opt; do
+  while getopts ":CDFLSvh:" opt; do
     case $opt in
       C)  C_opt=1           ;;
       D)  D_opt='-D'        ;;
@@ -234,6 +234,10 @@ rep_parse () {
       S)  S_opt=1           ;;
       v)  v_opt='-v'        ;;
       F)  F_opt='-F'        ;;
+      h)
+          hn="$OPTARG"
+          (echo "$hn" | grep -Eq "$hostalone") || fatal "Invalid hostname $hn."
+          ;;
       \?) fatal "Invalid rep_parse() option: -$OPTARG." ;;
     esac
   done
@@ -244,7 +248,7 @@ rep_parse () {
   else # use compression by default
     C_opt='-c'
   fi
-  [ -n "$v_opt" ] && printf '%s\nReplicating...\n' "$(date)"
+  [ -n "$v_opt" ] && printf '%s\nReplicating %s...\n' "$(date)" "$hn"
   if [ -z "$*" ]; then # use zap:rep property to replicate
     for f in $(zfs list -H -o name -t volume,filesystem); do
       dest=$(zfs get -H -o value zap:rep "$f")
@@ -453,7 +457,7 @@ a resilver in progress."
     warn "Failed to replicate $1."
   elif ! lsnap=$(zfs list -rd1 -H -tsnap -o name -S creation "$1" \
                    | grep -m1 "@ZAP_${hn}_") || [ -z "$lsnap" ]; then
-    warn "Failed to find the newest local snapshot for $1."
+    warn "Failed to find the newest local snapshot of $hn for $1."
   else
     l_ts=$(ss_ts "$(ss_st "$lsnap")")
     [ "${1#*/}" = "${1}" ] || fs="/${1#*/}"
@@ -581,6 +585,7 @@ fi
 # portability of {} in egrep is uncertain
 dsptn='^\w[[:alnum:]_.:-]*(/[[:alnum:]_\.:-]+)*$'
 hostptn='^((\w|\w[[:alnum:]-]*\w)\.)*(\w|\w[[:alnum:]-]*\w)$'
+hostalone='^(\w|\w[[:alnum:]-]*\w)$'
 # goo.gl/t3meuX (Stackoverflow answer about IP regexp)
 ipv4ptn="^((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])\.){3,3}(25[0-5]|(2[0-4]|\
 1{0,1}[0-9]){0,1}[0-9])$"

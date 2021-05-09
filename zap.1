@@ -1,4 +1,4 @@
-.Dd October 27, 2020
+.Dd May 9, 2021
 .Dt ZAP 1
 .Os
 .Sh NAME
@@ -14,6 +14,7 @@
 .Nm
 .Ar rep Ns | Ns Ar replicate
 .Op Fl CDFLSv
+.Op Fl h Ar host
 .Oo Oo Op Ar user Ns @ Oc Ns Ar host Ns : Ns
 .Ar parent_dataset
 .Op Fl r
@@ -93,7 +94,13 @@ after replication an attempt is made to set
 .Sy canmount
 to
 .Sy noauto
-on the remote side.  This is done to prevent mountpoint collisions.
+on the remote side.  This is done to prevent mountpoint collisions. By default,
+snapshots originating from the local host (as returned by
+.Ic hostname -s Ns
+) are replicated, but
+.Ic -h host
+can be used to replicate snapshots originating from
+.Ic host Ns .
 .Pp
 .Ss Ar destroy
 Use the
@@ -119,6 +126,12 @@ Supply
 to
 .Ar zfs receive Ns
 , which destroys remote changes that do not exist on the sending side.
+.It Fl h Ar host
+Replicate snapshots originating from
+.Ic host
+instead of those originating from the local host (as returned by
+.Ic hostname -s Ns
+).
 .It Fl L
 Do not operate on snapshots if the pool has a resilver in progress.  This is the
 default for the
@@ -179,6 +192,14 @@ the rback/phe dataset, but this time specify the datasets on the command
 line. If you use a non-default ssh port, specify it in ~/.ssh/config.
 .Bd -literal -offset indent
 zap rep zap@bravo:rback/phe -r zroot/ROOT zroot/usr/home/jrm
+.Ed
+.Pp
+Replicate datasets originating from awarnach to the remote host bravo, under the
+zback/phe dataset. If you use a non-default ssh port, specify it in
+~/.ssh/config.
+.Bd -literal -offset indent
+zfs set zap:rep='zap@bravo:zback/phe' zroot/ROOT zroot/usr/home/jrm
+zap rep -v -h awarnach
 .Ed
 .Pp
 Destroy expired snapshots.  Be verbose.
