@@ -248,6 +248,8 @@ rep_parse () {
   else # use compression by default
     C_opt='-c'
   fi
+  mbuf=$(command -v mbuffer)
+
   [ -n "$v_opt" ] && printf '%s\nReplicating %s...\n' "$(date)" "$hn"
   if [ -z "$*" ]; then # use zap:rep property to replicate
     for f in $(zfs list -H -o name -t volume,filesystem); do
@@ -319,6 +321,33 @@ zap:snap $rloc'")
   fi
 }
 
+# task to complete after replicating
+# rep_post <dataset>
+  # variable                       | set in..
+  # -------------------------------|------------
+  # v_opt,rloc,sshto               | rep_parse()
+  # lsnap,fs                       | rep()
+
+rep_post() {
+  [ -n "$v_opt" ] && \
+    echo "zfs bookmark $lsnap $(echo "$lsnap" | sed 's/@/#/')"
+  zfs bookmark "$lsnap" "$(echo "$lsnap" | sed 's/@/#/')"
+  if ssh "$sshto" "sh -c 'zfs set zap:snap=off ${rloc}${fs}'"; then
+    [ -n "$v_opt" ] && echo "zfs set zap:snap=off for $sshto:${rloc}${fs}"
+  else warn "Failed to set zap:snap=off for for $sshto:${rloc}${fs}"
+  fi
+  if ssh "$sshto" "sh -c 'zfs set zap:rep=off ${rloc}${fs}'"; then
+    [ -n "$v_opt" ] && echo "zfs set zap:rep=off for $sshto:${rloc}${fs}"
+  else warn "Failed to set zap:rep=off for for $sshto:${rloc}${fs}"
+  fi
+  if [ "$(zfs get -H -o value canmount "$1")" = 'on' ]; then
+    if ssh "$sshto" "sh -c 'zfs set canmount=noauto ${rloc}${fs}'"; then
+      [ -n "$v_opt" ] && echo "Set canmount=noauto for $sshto:${rloc}${fs}"
+    else warn "Failed to set canmount=noauto for $sshto:${rloc}${fs}"
+    fi
+  fi
+}
+
 # replicate full stream
 # rep_full <dataset>
 rep_full() {
@@ -352,29 +381,28 @@ rep_full() {
     else warn "Failed to replicate $lsnap to $sshto:$rloc"
     fi
   else # replicating remotely
-    [ -n "$v_opt" ] && \
-      echo "zfs send -Lep $C_opt $lsnap | ssh $sshto \"sh -c 'zfs recv -Fu \
-$v_opt -d $rloc'\""
-    if zfs send -Lep $C_opt "$lsnap" | \
-        ssh "$sshto" "sh -c 'zfs recv -Fu $v_opt -d $rloc'"; then
+    if [ -z "$mbuf" ]; then
       [ -n "$v_opt" ] && \
-        echo "zfs bookmark $lsnap $(echo "$lsnap" | sed 's/@/#/')"
-      zfs bookmark "$lsnap" "$(echo "$lsnap" | sed 's/@/#/')"
-      if ssh "$sshto" "sh -c 'zfs set zap:snap=off ${rloc}${fs}'"; then
-        [ -n "$v_opt" ] && echo "zfs set zap:snap=off for $sshto:${rloc}${fs}"
-      else warn "Failed to set zap:snap=off for for $sshto:${rloc}${fs}"
+        echo "zfs send -Lep $C_opt $lsnap | ssh $sshto \"sh -c 'zfs recv -Fu \
+$v_opt -d $rloc'\""
+    else
+      [ -n "$v_opt" ] && \
+        echo "zfs send -Lep $C_opt $lsnap | mbuffer -s 128k -m 1G -q | \
+ssh $sshto \"sh -c 'mbuffer -s 128k -m 1G -q | zfs recv -Fu $v_opt -d $rloc'\""
+    fi
+    if [ -z "$mbuf" ]; then
+      if zfs send -Lep $C_opt "$lsnap" | \
+          ssh "$sshto" "sh -c 'zfs recv -Fu $v_opt -d $rloc'"; then
+        rep_post "$1"
+      else warn "Failed to replicate $lsnap to $sshto:$rloc"
       fi
-      if ssh "$sshto" "sh -c 'zfs set zap:rep=off ${rloc}${fs}'"; then
-        [ -n "$v_opt" ] && echo "zfs set zap:rep=off for $sshto:${rloc}${fs}"
-      else warn "Failed to set zap:rep=off for for $sshto:${rloc}${fs}"
+    else
+      if zfs send -Lep $C_opt "$lsnap" | mbuffer -s 128k -m 1G -q | \
+          ssh "$sshto" "sh -c 'mbuffer -s 128k -m 1G -q | \
+zfs recv -Fu $v_opt -d $rloc'"; then
+        rep_post "$1"
+      else warn "Failed to replicate $lsnap to $sshto:$rloc"
       fi
-      if [ "$(zfs get -H -o value canmount "$1")" = 'on' ]; then
-        if ssh "$sshto" "sh -c 'zfs set canmount=noauto ${rloc}${fs}'"; then
-          [ -n "$v_opt" ] && echo "Set canmount=noauto for $sshto:${rloc}${fs}"
-        else warn "Failed to set canmount=noauto for $sshto:${rloc}${fs}"
-        fi
-      fi
-    else warn "Failed to replicate $lsnap to $sshto:$rloc"
     fi
   fi
 }
@@ -419,18 +447,38 @@ $rloc"
         else warn "Failed to replicate $lsnap to $sshto:$rloc."
         fi
       else # replicate remotely
-        [ -n "$v_opt" ] && \
-          echo "zfs send -Le $C_opt $i $sp $lsnap | ssh $sshto \"sh -c \
-'zfs recv -du $F_opt $v_opt $rloc'\""
-        if zfs send -Le $C_opt $i "$sp" "$lsnap" | \
-            ssh "$sshto" "sh -c 'zfs recv -du $F_opt $v_opt $rloc'"; then
+        if [ -z "$mbuf" ]; then
           [ -n "$v_opt" ] && \
-            echo "zfs bookmark $lsnap $(echo "$lsnap" | sed 's/@/#/')"
-          if zfs bookmark "$lsnap" "$(echo "$lsnap" | sed 's/@/#/')"; then
-            [ -n "$v_opt" ] && echo "Created bookmark for $lsnap."
-          else warn "Failed to create bookmark for $lsnap."
+            echo "zfs send -Le $C_opt $i $sp $lsnap | ssh $sshto \"sh -c \
+'zfs recv -du $F_opt $v_opt $rloc'\""
+        else
+          [ -n "$v_opt" ] && \
+            echo "zfs send -Le $C_opt $i $sp $lsnap | mbuffer -s 128k -m 1G -q \
+ssh $sshto \"sh -c 'zfs recv -du $F_opt $v_opt $rloc'\""
+        fi
+        if [ -z "$mbuf" ]; then
+          if zfs send -Le $C_opt $i "$sp" "$lsnap" | \
+              ssh "$sshto" "sh -c 'zfs recv -du $F_opt $v_opt $rloc'"; then
+            [ -n "$v_opt" ] && \
+              echo "zfs bookmark $lsnap $(echo "$lsnap" | sed 's/@/#/')"
+            if zfs bookmark "$lsnap" "$(echo "$lsnap" | sed 's/@/#/')"; then
+              [ -n "$v_opt" ] && echo "Created bookmark for $lsnap."
+            else warn "Failed to create bookmark for $lsnap."
+            fi
+          else warn "Failed to replicate $lsnap to $sshto:$rloc."
           fi
-        else warn "Failed to replicate $lsnap to $sshto:$rloc."
+        else
+          if zfs send -Le $C_opt $i "$sp" "$lsnap" | mbuffer -s 128k -m 1G -q | \
+              ssh "$sshto" "sh -c 'mbuffer -s 128k -m 1G -q | zfs recv -du \
+$F_opt $v_opt $rloc'"; then
+            [ -n "$v_opt" ] && \
+              echo "zfs bookmark $lsnap $(echo "$lsnap" | sed 's/@/#/')"
+            if zfs bookmark "$lsnap" "$(echo "$lsnap" | sed 's/@/#/')"; then
+              [ -n "$v_opt" ] && echo "Created bookmark for $lsnap."
+            else warn "Failed to create bookmark for $lsnap."
+            fi
+          else warn "Failed to replicate $lsnap to $sshto:$rloc."
+          fi
         fi
       fi
     fi
