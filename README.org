@@ -1,5 +1,5 @@
 ** Overview
-   zap automates the management of zfs snapshots.  With a few crontab entries, it can be used to create a comprehensive zfs backup system.  There are no configuration files.  All parameters are supplied on the command line or in zfs properties and all snapshot information is stored in snapshot names.
+   zap automates the management of zfs snapshots.  With a few crontab entries, it can be used to create a comprehensive zfs backup system.  There are no configuration files.  Parameters are supplied on the command line or in zfs properties and all snapshot information is stored in snapshot names.
 
    zap will not interfere with manually created snapshots or snapshots from other tools.  It will only operate on snapshots it creates.
 
@@ -37,10 +37,10 @@
 #+BEGIN_SRC sh
    # zap rep zap@bravo:rback/phe -r zroot/ROOT zroot/usr/home/jrm
 #+END_SRC
-   Replicate datasets that originated from the host awarnach to the remote host bravo, under the zback/phe dataset.  If you use a non-default ssh port, specify it in =~/.ssh/config=.
+   Replicate datasets that originated from the host awarnach to the remote host bravo, under the zback/phe dataset.  If you use a non-default ssh port, specify it in =~/.ssh/config=.  Filter the transfer through =~mbuffer~= by setting the =~ZAP_FILTER~= environment variable.  Note that =~mbuffer~= must be installed on both the sending and receiving hosts.
 #+BEGIN_SRC sh
    # zfs set zap:rep='zap@bravo:zback/phe' zroot/ROOT zroot/usr/home/jrm
-   # zap rep -v -h awarnach
+   # ZAP_FILTER="mbuffer -s 128k -m 10M" zap rep -v -h awarnach
 #+END_SRC
    Destroy expired snapshots.  Be verbose.
 #+BEGIN_SRC sh
@@ -83,7 +83,7 @@
 
    =rep= | =replicate=
 
-   Use the =rep= subcommand to replicate datasets.  If a destination and datasets are not supplied on the command line, datasets with a destination set in the =zap:rep= user property are replicated.  If the destination does not contain a =host=, or if the supplied host is one of =localhost=, =127.x.x.x=, or =::1=, then any =user@= is ignored and =ssh= is not be used.  If the =canmount= property of the local dataset is set to =on=, after replication an attempt is made to set =canmount= to =noauto= on the remote side.  This is done to prevent mountpoint collisions.
+   Use the =rep= subcommand to replicate datasets.  If a destination and datasets are not supplied on the command line, datasets with a destination set in the =zap:rep= user property are replicated.  If the destination does not contain a =host=, or if the supplied host is one of =localhost=, =127.x.x.x=, or =::1=, then any =user@= is ignored and =ssh= is not be used.  If the =canmount= property of the local dataset is set to =on=, after replication an attempt is made to set =canmount= to =noauto= on the remote side.  This is done to prevent mountpoint collisions.  Set the =~ZAP_FILTER~= environment variable to a command to filter the transfer.  For example, =~ZAP_FILTER="mbuffer -s 128k -m 10M"~= will filter the transfer through =~mbuffer~=.  Note that the filter command must be installed on both the sending and receiving hosts.
 
    =destroy=
 

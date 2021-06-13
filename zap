@@ -352,11 +352,12 @@ rep_full() {
     else warn "Failed to replicate $lsnap to $sshto:$rloc"
     fi
   else # replicating remotely
-    [ -n "$v_opt" ] && \
-      echo "zfs send -Lep $C_opt $lsnap | ssh $sshto \"sh -c 'zfs recv -Fu \
-$v_opt -d $rloc'\""
-    if zfs send -Lep $C_opt "$lsnap" | \
-        ssh "$sshto" "sh -c 'zfs recv -Fu $v_opt -d $rloc'"; then
+    if [ -n "$v_opt" ]; then
+      echo -n "zfs send -Lep $C_opt $lsnap "
+      if [ -n "$ZAP_FILTER" ]; then echo "| $ZAP_FILTER "; fi
+      echo "| ssh $sshto \"sh -c 'zfs recv -Fu $v_opt -d $rloc'\""
+    fi
+    if rsend "-Lep $C_opt $lsnap" "zfs recv -Fu $v_opt -d $rloc'"; then
       [ -n "$v_opt" ] && \
         echo "zfs bookmark $lsnap $(echo "$lsnap" | sed 's/@/#/')"
       zfs bookmark "$lsnap" "$(echo "$lsnap" | sed 's/@/#/')"
@@ -419,11 +420,12 @@ $rloc"
         else warn "Failed to replicate $lsnap to $sshto:$rloc."
         fi
       else # replicate remotely
-        [ -n "$v_opt" ] && \
-          echo "zfs send -Le $C_opt $i $sp $lsnap | ssh $sshto \"sh -c \
-'zfs recv -du $F_opt $v_opt $rloc'\""
-        if zfs send -Le $C_opt $i "$sp" "$lsnap" | \
-            ssh "$sshto" "sh -c 'zfs recv -du $F_opt $v_opt $rloc'"; then
+        if [ -n "$v_opt" ]; then
+          echo -n "zfs send -Le $C_opt $i $sp $lsnap "
+          if [ -n "$ZAP_FILTER" ]; then echo -n "| $ZAP_FILTER "; fi
+          echo "| ssh $sshto \"sh -c 'zfs recv -du $F_opt $v_opt $rloc'\""
+        fi
+        if rsend "-Le $C_opt $i $sp $lsnap" "zfs recv -du $F_opt $v_opt $rloc"; then
           [ -n "$v_opt" ] && \
             echo "zfs bookmark $lsnap $(echo "$lsnap" | sed 's/@/#/')"
           if zfs bookmark "$lsnap" "$(echo "$lsnap" | sed 's/@/#/')"; then
@@ -481,6 +483,14 @@ $sshto:$rloc/$fs was not created by zap."
     else # send incremental stream
       rep_incr "$1"
     fi
+  fi
+}
+
+rsend() {
+  if [ -n "$ZAP_FILTER" ]; then
+    zfs send $1 | $ZAP_FILTER | ssh "$sshto" "sh -c '$ZAP_FILTER | $2'"
+   else
+    zfs send $1 | ssh "$sshto" "sh -c '$2'"
   fi
 }
 

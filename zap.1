@@ -1,4 +1,4 @@
-.Dd May 9, 2021
+.Dd June 14, 2021
 .Dt ZAP 1
 .Os
 .Sh NAME
@@ -101,6 +101,11 @@ snapshots originating from the local host (as returned by
 .Ic -h host
 can be used to replicate snapshots originating from
 .Ic host Ns .
+Set the ZAP_FILTER environment variable to a command to filter the transfer.
+For example, ZAP_FILTER="mbuffer -s 128k -m 10M" will filter the transfer
+through mbuffer.
+Note that the filter command must be available on both the sending and receiving
+hosts.
 .Pp
 .Ss Ar destroy
 Use the
@@ -161,6 +166,17 @@ Recursively create or replicate snapshots of all descendants.
 .It Fl v
 Be verbose.
 .El
+.Sh ENVIRONMENT
+The following environment variable affects the execution of
+.Nm :
+.Bl -tag -width ".Ev CLICOLOR_FORCE"
+.It Ev ZAP_FILTER
+Filter
+.Ar rep
+through the command contained in the variable.  For example, a value of "mbuffer
+-s 128k -m 10M" will filter the transfer through mbuffer.  Note that the filter
+command must be available on both the sending and receiving hosts.
+.El
 .Sh EXAMPLES
 Create snapshots that will expire after three weeks.
 .Bd -literal -offset indent
@@ -196,7 +212,9 @@ zap rep zap@bravo:rback/phe -r zroot/ROOT zroot/usr/home/jrm
 .Pp
 Replicate datasets originating from awarnach to the remote host bravo, under the
 zback/phe dataset. If you use a non-default ssh port, specify it in
-~/.ssh/config.
+~/.ssh/config.  Filter the transfer through mbuffer by setting the ZAP_FILTER
+environment variable.  Note that mbuffer must be available on both the sending
+and receiving hosts.
 .Bd -literal -offset indent
 zfs set zap:rep='zap@bravo:zback/phe' zroot/ROOT zroot/usr/home/jrm
 zap rep -v -h awarnach
@@ -245,6 +263,8 @@ disks, so only do it every 24 hours.
 .It An David Samms Mt dsamms@nw-ds.com
 .It An Victor Naumov Mt vicnaumov@gmail.com
 .It An Dries Michiels Mt driesm.michiels@gmail.com
+.It An Louis Kowolowski Mt louisk@cryptomonkeys.org
+.It An Maxime Soul\('e
 .El
 .Sh BUGS
 .Lk http://github.com/jehops/zap/issues Issue tracker
