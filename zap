@@ -1,7 +1,7 @@
 #!/bin/sh
 
 # ==============================================================================
-# Copyright (c) 2018, Joseph Mingrone.  All rights reserved.
+# Copyright (c) 2021, Joseph Mingrone.  All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are met:
@@ -621,7 +621,7 @@ ttlptn='^[0-9]{1,4}[dwmy]$'
 unptn='^[[:alnum:]_][[:alnum:]_-]{0,31}$'
 zptn="@ZAP_(${hn})_..*--[0-9]{1,4}[dwmy]"
 
-readonly version=0.8
+readonly version=0.8.1
 
 case $1 in
   snap|snapshot) shift; snap_parse "$@" ;;
