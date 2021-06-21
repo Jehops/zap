@@ -195,7 +195,7 @@ destroy () {
   now_ts=$(date '+%s')
 
   [ -n "$v_opt" ] && printf '%s\nDestroying snapshots...\n' "$(date)"
-  for i in $(zfs list -H -t snap -o name); do
+  for i in $($ZAP_PREFIX zfs list -H -t snap -o name); do
     if echo "$i" | grep -Eq "$zptn"; then
       pool="${i%%[/@]*}"
       # Do not quote $D_opt, but ensure it does not contain spaces.
@@ -215,8 +215,8 @@ time could not be determined."
         else
           expire_ts=$((snap_ts + ttls))
           if [ "$now_ts" -gt "$expire_ts" ]; then
-            [ -n "$v_opt" ] && echo "zfs destroy $i"
-            zfs destroy "$i"
+            [ -n "$v_opt" ] && echo "$ZAP_PREFIX zfs destroy $i"
+            $ZAP_PREFIX zfs destroy "$i"
           fi
         fi
       fi
@@ -250,8 +250,8 @@ rep_parse () {
   fi
   [ -n "$v_opt" ] && printf '%s\nReplicating %s...\n' "$(date)" "$hn"
   if [ -z "$*" ]; then # use zap:rep property to replicate
-    for f in $(zfs list -H -o name -t volume,filesystem); do
-      dest=$(zfs get -H -o value zap:rep "$f")
+    for f in $($ZAP_PREFIX zfs list -H -o name -t volume,filesystem); do
+      dest=$($ZAP_PREFIX zfs get -H -o value zap:rep "$f")
       sshto=${dest%:*}
       rloc=${dest##*:} # replication location
       if ! val_dest "$dest"; then
@@ -261,9 +261,9 @@ rep_parse () {
         tdest=$(echo "$dest" | tr '[:upper:]' '[:lower:]')
         if [ "$tdest" != 'off' ]; then
           if [ -z "$host" ]; then
-            rzsv=$(zfs get -H -o value -t filesystem zap:snap "$rloc")
+            rzsv=$($ZAP_PREFIX zfs get -H -o value -t filesystem zap:snap "$rloc")
           else
-            rzsv=$(ssh "$sshto" "sh -c 'zfs get -H -o value -t filesystem \
+            rzsv=$(ssh "$sshto" "sh -c '$ZAP_PREFIX_REMOTE zfs get -H -o value -t filesystem \
 zap:snap $rloc'")
           fi
           rzsv=$(echo "$rzsv" | tr '[:upper:]' '[:lower:]')
@@ -284,9 +284,9 @@ zap:snap $rloc'")
       warn "Failed to replicate to $2.  Invalid destination."
     else
       if [ -z "$host" ]; then
-        rzsv=$(zfs get -H -o value -t filesystem zap:snap "$rloc")
+        rzsv=$($ZAP_PREFIX zfs get -H -o value -t filesystem zap:snap "$rloc")
       else
-        rzsv=$(ssh "$sshto" "sh -c 'zfs get -H -o value -t filesystem \
+        rzsv=$(ssh "$sshto" "sh -c '$ZAP_PREFIX_REMOTE zfs get -H -o value -t filesystem \
 zap:snap $rloc'")
       fi
       rzsv=$(echo "$rzsv" | tr '[:upper:]' '[:lower:]')
@@ -299,7 +299,7 @@ zap:snap $rloc'")
           while getopts ":r:" opt; do
             case $opt in
               r)
-                for f in $(zfs list -H -o name -t filesystem,volume -r \
+                for f in $($ZAP_PREFIX zfs list -H -o name -t filesystem,volume -r \
                                "$OPTARG"); do
                   rep "$f" "$dest"
                 done
@@ -330,22 +330,22 @@ rep_full() {
 
   if [ -z "$host" ]; then # replicating locally
     [ -n "$v_opt" ] && \
-      echo "zfs send -Lep $C_opt $lsnap | zfs recv -Fu $v_opt -d $rloc"
-    if zfs send -Lep $C_opt "$lsnap" | zfs recv -Fu $v_opt -d "$rloc"; then
+      echo "$ZAP_PREFIX zfs send -Lep $C_opt $lsnap | $ZAP_PREFIX zfs recv -Fu $v_opt -d $rloc"
+    if $ZAP_PREFIX zfs send -Lep $C_opt "$lsnap" | $ZAP_PREFIX$ZAP_PREFIX  zfs recv -Fu $v_opt -d "$rloc"; then
       [ -n "$v_opt" ] && \
-        echo "zfs bookmark $lsnap $(echo "$lsnap" | sed 's/@/#/')"
-      zfs bookmark "$lsnap" "$(echo "$lsnap" | sed 's/@/#/')"
-      if [ "$(zfs get -H -o value canmount "$1")" = 'on' ]; then
-        if zfs set canmount=noauto "${rloc}${fs}"; then
+        echo "$ZAP_PREFIX zfs bookmark $lsnap $(echo "$lsnap" | sed 's/@/#/')"
+      $ZAP_PREFIX zfs bookmark "$lsnap" "$(echo "$lsnap" | sed 's/@/#/')"
+      if [ "$($ZAP_PREFIX zfs get -H -o value canmount "$1")" = 'on' ]; then
+        if $ZAP_PREFIX zfs set canmount=noauto "${rloc}${fs}"; then
           echo "Set canmount=noauto for ${rloc}${fs}";
         else warn "Failed to set canmount=noauto for ${rloc}${fs}"
         fi
       fi
-      if zfs set zap:snap=off "${rloc}${fs}"; then
+      if $ZAP_PREFIX zfs set zap:snap=off "${rloc}${fs}"; then
         [ -n "$v_opt" ] && echo "Set zap:snap=off for ${rloc}${fs}";
       else warn "Failed to set zap:snap=offfor ${rloc}${fs}"
       fi
-      if zfs set zap:rep=off "${rloc}${fs}"; then
+      if $ZAP_PREFIX zfs set zap:rep=off "${rloc}${fs}"; then
         [ -n "$v_opt" ] && echo "Set zap:rep=off for ${rloc}${fs}";
       else warn "Failed to set zap:rep=off for ${rloc}${fs}"
       fi
@@ -353,23 +353,23 @@ rep_full() {
     fi
   else # replicating remotely
     [ -n "$v_opt" ] && \
-      echo "zfs send -Lep $C_opt $lsnap | ssh $sshto \"sh -c 'zfs recv -Fu \
+      echo "$ZAP_PREFIX zfs send -Lep $C_opt $lsnap | ssh $sshto \"sh -c '$ZAP_PREFIX_REMOTE zfs recv -Fu \
 $v_opt -d $rloc'\""
-    if zfs send -Lep $C_opt "$lsnap" | \
-        ssh "$sshto" "sh -c 'zfs recv -Fu $v_opt -d $rloc'"; then
+    if $ZAP_PREFIX zfs send -Lep $C_opt "$lsnap" | \
+        ssh "$sshto" "sh -c '$ZAP_PREFIX_REMOTE zfs recv -Fu $v_opt -d $rloc'"; then
       [ -n "$v_opt" ] && \
-        echo "zfs bookmark $lsnap $(echo "$lsnap" | sed 's/@/#/')"
-      zfs bookmark "$lsnap" "$(echo "$lsnap" | sed 's/@/#/')"
-      if ssh "$sshto" "sh -c 'zfs set zap:snap=off ${rloc}${fs}'"; then
-        [ -n "$v_opt" ] && echo "zfs set zap:snap=off for $sshto:${rloc}${fs}"
+        echo "$ZAP_PREFIX zfs bookmark $lsnap $(echo "$lsnap" | sed 's/@/#/')"
+      $ZAP_PREFIX zfs bookmark "$lsnap" "$(echo "$lsnap" | sed 's/@/#/')"
+      if ssh "$sshto" "sh -c '$ZAP_PREFIX_REMOTE zfs set zap:snap=off ${rloc}${fs}'"; then
+        [ -n "$v_opt" ] && echo "$ZAP_PREFIX_REMOTE zfs set zap:snap=off for $sshto:${rloc}${fs}"
       else warn "Failed to set zap:snap=off for for $sshto:${rloc}${fs}"
       fi
-      if ssh "$sshto" "sh -c 'zfs set zap:rep=off ${rloc}${fs}'"; then
-        [ -n "$v_opt" ] && echo "zfs set zap:rep=off for $sshto:${rloc}${fs}"
+      if ssh "$sshto" "sh -c '$ZAP_PREFIX_REMOTE zfs set zap:rep=off ${rloc}${fs}'"; then
+        [ -n "$v_opt" ] && echo "$ZAP_PREFIX_REMOTE zfs set zap:rep=off for $sshto:${rloc}${fs}"
       else warn "Failed to set zap:rep=off for for $sshto:${rloc}${fs}"
       fi
-      if [ "$(zfs get -H -o value canmount "$1")" = 'on' ]; then
-        if ssh "$sshto" "sh -c 'zfs set canmount=noauto ${rloc}${fs}'"; then
+      if [ "$($ZAP_PREFIX zfs get -H -o value canmount "$1")" = 'on' ]; then
+        if ssh "$sshto" "sh -c '$ZAP_PREFIX_REMOTE zfs set canmount=noauto ${rloc}${fs}'"; then
           [ -n "$v_opt" ] && echo "Set canmount=noauto for $sshto:${rloc}${fs}"
         else warn "Failed to set canmount=noauto for $sshto:${rloc}${fs}"
         fi
@@ -391,14 +391,14 @@ rep_incr() {
   r_ts=$(ss_ts "$(ss_st "$rsnap")")
   if [ "$l_ts" -gt "$r_ts" ]; then
     ## check if there is a local snapshot for the remote snapshot
-    if ! sp=$(zfs list -rd1 -t snap -H -o name "$1" | grep "$rsnap"); then
+    if ! sp=$($ZAP_PREFIX zfs list -rd1 -t snap -H -o name "$1" | grep "$rsnap"); then
       warn "Failed to find local snapshot for remote snapshot\
 ${rloc}${fs}${rsnap}."
       warn "Will attempt to fall back to a bookmark, but all\
 intermediary snapshots will not be sent."
     fi
     ## check if there is a bookmark for the remote snapshot
-    if [ -z "$sp" ] && ! sp=$(zfs list -rd1 -t bookmark -H -o name \
+    if [ -z "$sp" ] && ! sp=$($ZAP_PREFIX zfs list -rd1 -t bookmark -H -o name \
                                   "$1" | grep "${rsnap#@}"); then
       warn "Failed to find bookmark for remote snapshot ${rloc}${fs}${rsnap}."
       warn "Failed to replicate $lsnap to $sshto:$rloc."
@@ -406,13 +406,13 @@ intermediary snapshots will not be sent."
       if echo "$sp" | grep -q '@'; then i='-I'; else i='-i'; fi
       if [ -z "$host" ]; then # replicate locally
         [ -n "$v_opt" ] && \
-          echo "zfs send -Le $C_opt $i $sp $lsnap | zfs recv -du $F_opt $v_opt \
+          echo "$ZAP_PREFIX zfs send -Le $C_opt $i $sp $lsnap | $ZAP_PREFIX zfs recv -du $F_opt $v_opt \
 $rloc"
-        if zfs send -Le $C_opt $i "$sp" "$lsnap" | zfs recv -du $F_opt $v_opt \
+        if $ZAP_PREFIX zfs send -Le $C_opt $i "$sp" "$lsnap" | $ZAP_PREFIX zfs recv -du $F_opt $v_opt \
                                                  "$rloc"; then
           [ -n "$v_opt" ] && \
-            echo "zfs bookmark $lsnap $(echo "$lsnap" | sed 's/@/#/')"
-          if zfs bookmark "$lsnap" "$(echo "$lsnap" | sed 's/@/#/')"; then
+            echo "$ZAP_PREFIX zfs bookmark $lsnap $(echo "$lsnap" | sed 's/@/#/')"
+          if $ZAP_PREFIX zfs bookmark "$lsnap" "$(echo "$lsnap" | sed 's/@/#/')"; then
             [ -n "$v_opt" ] && echo "Created bookmark for $lsnap."
           else warn "Failed to create bookmark for $lsnap."
           fi
@@ -420,13 +420,13 @@ $rloc"
         fi
       else # replicate remotely
         [ -n "$v_opt" ] && \
-          echo "zfs send -Le $C_opt $i $sp $lsnap | ssh $sshto \"sh -c \
-'zfs recv -du $F_opt $v_opt $rloc'\""
-        if zfs send -Le $C_opt $i "$sp" "$lsnap" | \
-            ssh "$sshto" "sh -c 'zfs recv -du $F_opt $v_opt $rloc'"; then
+          echo "$ZAP_PREFIX zfs send -Le $C_opt $i $sp $lsnap | ssh $sshto \"sh -c \
+'$ZAP_PREFIX_REMOTE zfs recv -du $F_opt $v_opt $rloc'\""
+        if $ZAP_PREFIX zfs send -Le $C_opt $i "$sp" "$lsnap" | \
+            ssh "$sshto" "sh -c '$ZAP_PREFIX_REMOTE zfs recv -du $F_opt $v_opt $rloc'"; then
           [ -n "$v_opt" ] && \
-            echo "zfs bookmark $lsnap $(echo "$lsnap" | sed 's/@/#/')"
-          if zfs bookmark "$lsnap" "$(echo "$lsnap" | sed 's/@/#/')"; then
+            echo "$ZAP_PREFIX zfs bookmark $lsnap $(echo "$lsnap" | sed 's/@/#/')"
+          if $ZAP_PREFIX zfs bookmark "$lsnap" "$(echo "$lsnap" | sed 's/@/#/')"; then
             [ -n "$v_opt" ] && echo "Created bookmark for $lsnap."
           else warn "Failed to create bookmark for $lsnap."
           fi
@@ -451,11 +451,11 @@ being scrubbed."
   elif [ -n "$L_opt" ] && pool_scrub "${1%%/*}"; then
     warn "DID NOT replicate $1 because '-L' was supplied and the pool has \
 a resilver in progress."
-  elif ! zfs list -H -o name -t volume,filesystem "$1" \
+  elif ! $ZAP_PREFIX zfs list -H -o name -t volume,filesystem "$1" \
          > /dev/null 2>&1; then
     warn "Dataset $1 does not exist."
     warn "Failed to replicate $1."
-  elif ! lsnap=$(zfs list -rd1 -H -tsnap -o name -S creation "$1" \
+  elif ! lsnap=$($ZAP_PREFIX zfs list -rd1 -H -tsnap -o name -S creation "$1" \
                    | grep -m1 "@ZAP_${hn}_") || [ -z "$lsnap" ]; then
     warn "Failed to find the newest local snapshot of $hn for $1."
   else
@@ -464,10 +464,10 @@ a resilver in progress."
     # get the youngest replicated snapshot for this dataset
     # $host extracted in val_dest(). If it is empty, we are replicating locally.
     if [ -z "$host" ]; then
-      rsnap=$(zfs list -rd1 -H -tsnap -o name -S creation "${rloc}${fs}" \
+      rsnap=$($ZAP_PREFIX zfs list -rd1 -H -tsnap -o name -S creation "${rloc}${fs}" \
                   2>/dev/null | head -n1 | sed 's/^.*@/@/')
     else
-      rsnap=$(ssh "$sshto" "sh -c 'zfs list -rd1 -H -tsnap -o name -S \
+      rsnap=$(ssh "$sshto" "sh -c '$ZAP_PREFIX_REMOTE zfs list -rd1 -H -tsnap -o name -S \
 creation ${rloc}${fs} 2>/dev/null | head -n1'" | sed 's/^.*@/@/')
     fi
     if [ -z "$rsnap" ]; then # replicate full stream
@@ -505,8 +505,8 @@ snap_parse () {
 
   if [ -z "$*" ]; then # use zap:snap property to create snapshots
     [ -n "$v_opt" ] && printf '%s\nCreating snapshots...\n' "$(date)"
-    for f in $(zfs list -Ho name -t volume,filesystem); do
-      if [ "$(zfs get -H -o value zap:snap "$f")" = 'on' ]; then
+    for f in $($ZAP_PREFIX zfs list -Ho name -t volume,filesystem); do
+      if [ "$($ZAP_PREFIX zfs get -H -o value zap:snap "$f")" = 'on' ]; then
         snap "$f"
       fi
     done
@@ -554,12 +554,12 @@ being scrubbed!"
 a resilver in progress!"
   else
     if [ -n "$v_opt" ]; then
-      printf "zfs snap "
+      printf "$ZAP_PREFIX zfs snap "
       [ -n "$r_opt" ] && printf '%s ' '-r'
       echo "$1@ZAP_${hn}_${date}--${ttl}"
     fi
     # Do not quote $r_opt, but ensure it does not contain spaces.
-    zfs snap $r_opt "$1@ZAP_${hn}_${date}--${ttl}"
+    $ZAP_PREFIX zfs snap $r_opt "$1@ZAP_${hn}_${date}--${ttl}"
   fi
 }
 # ==============================================================================

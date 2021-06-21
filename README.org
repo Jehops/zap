@@ -13,7 +13,9 @@
    =# zap -v | -version | --version=
 
 ** Examples
-   Create snapshots that will expire after 3 weeks.  The =#= prompt indicates commands that are run as root.  A solution that delegates permissions for most of these commands to an unprivileged user is described [[http://ftfl.ca/blog/2016-12-27-zfs-replication.html][here]].
+   For the below examples, the =#= prompt indicates commands that are run as root.  A solution that delegates permissions for most of these commands to an unprivileged user on FreeBSD is described [[http://ftfl.ca/blog/2016-12-27-zfs-replication.html][here]]; a similar apprpach can be used for Solaris (OpenSolaris, OpenIndiana, illumos) hosts.  Linux users are advised to set the =ZAP_PREFIX= environment variable to =sudo= and allow the running user to run =zfs= and =zpool= commands.
+
+   Create snapshots that will expire after 3 weeks.
 #+BEGIN_SRC sh
   # zfs set zap:snap=on zroot/usr/home/nox zroot/var/
   # zfs set zap:snap=off zroot/var/crash zroot/var/tmp zroot/var/mail
@@ -112,6 +114,15 @@ and =rep= subcommands.
     =-r=  Recursively create or replicate snapshots of all descendants.
 
     =-v=  Be verbose.
+
+** Environment variables
+   =ZAP_PREFIX=
+
+   Prefix all =zfs= commands with the contents of the variable. This is intended to allow privilege escalation with sudo or similar tools, which is a requirement on Linux if you do not want to run zap as root until pool-level access permissions are implemented in OpenZFS.
+
+   =ZAP_PREFIX_REMOTE=
+
+   Same as =ZAP_PREFIX= but used on the remote host over SSH when replicating.
 
 ** Author and Contributors
    - Joseph Mingrone <jrm@ftfl.ca>

@@ -231,6 +231,24 @@ disks, so only do it every 24 hours.
 # replicate datasets
 54	*/1	*	*	*	zap rep -v
 .Ed
+.Sh ENVIRONMENT VARIABLES
+.Bl -tag -width "ZAP_PREFIX_REMOTE"
+.It Ev ZAP_PREFIX
+Prefix all
+.Ar zfs
+commands with the contents of the variable. This is intended to allow privilege
+escalation with
+.Ar sudo
+or similar tools, which is a requirement on Linux if you do not want to run
+.Nm
+as root until pool-level access permissions are implemented in OpenZFS.
+.It Ev ZAP_PREFIX_REMOTE
+Prefix all remote
+.Ar zfs
+commands over
+.Ar ssh
+with the contents of the variable.
+.El
 .Sh SEE ALSO
 .Bl -tag -compact -width "12345678"
 .It Lk http://github.com/jehops/zap GitHub Page
