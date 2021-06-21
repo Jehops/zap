@@ -1,7 +1,7 @@
 #!/bin/sh
 
 # ==============================================================================
-# Copyright (c) 2018, Joseph Mingrone.  All rights reserved.
+# Copyright (c) 2021, Joseph Mingrone.  All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are met:
@@ -352,11 +352,12 @@ rep_full() {
     else warn "Failed to replicate $lsnap to $sshto:$rloc"
     fi
   else # replicating remotely
-    [ -n "$v_opt" ] && \
-      echo "$ZAP_PREFIX zfs send -Lep $C_opt $lsnap | ssh $sshto \"sh -c '$ZAP_PREFIX_REMOTE zfs recv -Fu \
-$v_opt -d $rloc'\""
-    if $ZAP_PREFIX zfs send -Lep $C_opt "$lsnap" | \
-        ssh "$sshto" "sh -c '$ZAP_PREFIX_REMOTE zfs recv -Fu $v_opt -d $rloc'"; then
+    if [ -n "$v_opt" ]; then
+      echo -n "$ZAP_PREFIX zfs send -Lep $C_opt $lsnap "
+      if [ -n "$ZAP_FILTER" ]; then echo "| $ZAP_FILTER "; fi
+      echo "| ssh $sshto \"sh -c '$ZAP_PREFIX_REMOTE zfs recv -Fu $v_opt -d $rloc'\""
+    fi
+    if rsend "-Lep $C_opt $lsnap" "$ZAP_PREFIX_REMOTE zfs recv -Fu $v_opt -d $rloc'"; then
       [ -n "$v_opt" ] && \
         echo "$ZAP_PREFIX zfs bookmark $lsnap $(echo "$lsnap" | sed 's/@/#/')"
       $ZAP_PREFIX zfs bookmark "$lsnap" "$(echo "$lsnap" | sed 's/@/#/')"
@@ -419,11 +420,12 @@ $rloc"
         else warn "Failed to replicate $lsnap to $sshto:$rloc."
         fi
       else # replicate remotely
-        [ -n "$v_opt" ] && \
-          echo "$ZAP_PREFIX zfs send -Le $C_opt $i $sp $lsnap | ssh $sshto \"sh -c \
-'$ZAP_PREFIX_REMOTE zfs recv -du $F_opt $v_opt $rloc'\""
-        if $ZAP_PREFIX zfs send -Le $C_opt $i "$sp" "$lsnap" | \
-            ssh "$sshto" "sh -c '$ZAP_PREFIX_REMOTE zfs recv -du $F_opt $v_opt $rloc'"; then
+        if [ -n "$v_opt" ]; then
+          echo -n "$ZAP_PREFIX zfs send -Le $C_opt $i $sp $lsnap "
+          if [ -n "$ZAP_FILTER" ]; then echo -n "| $ZAP_FILTER "; fi
+          echo "| ssh $sshto \"sh -c '$ZAP_PREFIX_REMOTE zfs recv -du $F_opt $v_opt $rloc'\""
+        fi
+        if rsend "-Le $C_opt $i $sp $lsnap" "$ZAP_PREFIX_REMOTE zfs recv -du $F_opt $v_opt $rloc"; then
           [ -n "$v_opt" ] && \
             echo "$ZAP_PREFIX zfs bookmark $lsnap $(echo "$lsnap" | sed 's/@/#/')"
           if $ZAP_PREFIX zfs bookmark "$lsnap" "$(echo "$lsnap" | sed 's/@/#/')"; then
@@ -481,6 +483,14 @@ $sshto:$rloc/$fs was not created by zap."
     else # send incremental stream
       rep_incr "$1"
     fi
+  fi
+}
+
+rsend() {
+  if [ -n "$ZAP_FILTER" ]; then
+    zfs send $1 | $ZAP_FILTER | ssh "$sshto" "sh -c '$ZAP_FILTER | $2'"
+   else
+    zfs send $1 | ssh "$sshto" "sh -c '$2'"
   fi
 }
 
@@ -611,7 +621,7 @@ ttlptn='^[0-9]{1,4}[dwmy]$'
 unptn='^[[:alnum:]_][[:alnum:]_-]{0,31}$'
 zptn="@ZAP_(${hn})_..*--[0-9]{1,4}[dwmy]"
 
-readonly version=0.8
+readonly version=0.8.1
 
 case $1 in
   snap|snapshot) shift; snap_parse "$@" ;;

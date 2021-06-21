@@ -1,4 +1,4 @@
-.Dd May 9, 2021
+.Dd June 14, 2021
 .Dt ZAP 1
 .Os
 .Sh NAME
@@ -101,6 +101,11 @@ snapshots originating from the local host (as returned by
 .Ic -h host
 can be used to replicate snapshots originating from
 .Ic host Ns .
+Set the ZAP_FILTER environment variable to a command to filter the transfer.
+For example, ZAP_FILTER="mbuffer -s 128k -m 10M" will filter the transfer
+through mbuffer.
+Note that the filter command must be available on both the sending and receiving
+hosts.
 .Pp
 .Ss Ar destroy
 Use the
@@ -161,6 +166,32 @@ Recursively create or replicate snapshots of all descendants.
 .It Fl v
 Be verbose.
 .El
+.Sh ENVIRONMENT
+The following environment variables affects the execution of
+.Nm :
+.Bl -tag -width "ZAP_PREFIX_REMOTE"
+.It Ev ZAP_FILTER
+Filter
+.Ar rep
+through the command contained in the variable.  For example, a value of "mbuffer
+-s 128k -m 10M" will filter the transfer through mbuffer.  Note that the filter
+command must be available on both the sending and receiving hosts.
+.It Ev ZAP_PREFIX
+Prefix all
+.Ar zfs
+commands with the contents of the variable. This is intended to allow privilege
+escalation with
+.Ar sudo
+or similar tools, which is a requirement on Linux if you do not want to run
+.Nm
+as root until pool-level access permissions are implemented in OpenZFS.
+.It Ev ZAP_PREFIX_REMOTE
+Prefix all remote
+.Ar zfs
+commands over
+.Ar ssh
+with the contents of the variable.
+.El
 .Sh EXAMPLES
 Create snapshots that will expire after three weeks.
 .Bd -literal -offset indent
@@ -196,7 +227,9 @@ zap rep zap@bravo:rback/phe -r zroot/ROOT zroot/usr/home/jrm
 .Pp
 Replicate datasets originating from awarnach to the remote host bravo, under the
 zback/phe dataset. If you use a non-default ssh port, specify it in
-~/.ssh/config.
+~/.ssh/config.  Filter the transfer through mbuffer by setting the ZAP_FILTER
+environment variable.  Note that mbuffer must be available on both the sending
+and receiving hosts.
 .Bd -literal -offset indent
 zfs set zap:rep='zap@bravo:zback/phe' zroot/ROOT zroot/usr/home/jrm
 zap rep -v -h awarnach
@@ -231,24 +264,6 @@ disks, so only do it every 24 hours.
 # replicate datasets
 54	*/1	*	*	*	zap rep -v
 .Ed
-.Sh ENVIRONMENT VARIABLES
-.Bl -tag -width "ZAP_PREFIX_REMOTE"
-.It Ev ZAP_PREFIX
-Prefix all
-.Ar zfs
-commands with the contents of the variable. This is intended to allow privilege
-escalation with
-.Ar sudo
-or similar tools, which is a requirement on Linux if you do not want to run
-.Nm
-as root until pool-level access permissions are implemented in OpenZFS.
-.It Ev ZAP_PREFIX_REMOTE
-Prefix all remote
-.Ar zfs
-commands over
-.Ar ssh
-with the contents of the variable.
-.El
 .Sh SEE ALSO
 .Bl -tag -compact -width "12345678"
 .It Lk http://github.com/jehops/zap GitHub Page
@@ -263,6 +278,8 @@ with the contents of the variable.
 .It An David Samms Mt dsamms@nw-ds.com
 .It An Victor Naumov Mt vicnaumov@gmail.com
 .It An Dries Michiels Mt driesm.michiels@gmail.com
+.It An Louis Kowolowski Mt louisk@cryptomonkeys.org
+.It An Maxime Soul\('e
 .El
 .Sh BUGS
 .Lk http://github.com/jehops/zap/issues Issue tracker
