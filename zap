@@ -65,7 +65,7 @@ pool_ok () {
   done
   shift $(( OPTIND - 1 ))
 
-  if zpool status "$1" | grep -Eq "$skip"; then
+  if $ZAP_PREFIX zpool status "$1" | grep -Eq "$skip"; then
     return 1
   fi
   return 0
@@ -73,7 +73,7 @@ pool_ok () {
 
 # pool_scrub <pool>
 pool_scrub () {
-  if zpool status "$1" | grep -q "scrub in progress"; then
+  if $ZAP_PREFIX zpool status "$1" | grep -q "scrub in progress"; then
     return 0
   fi
   return 1
@@ -81,7 +81,7 @@ pool_scrub () {
 
 # pool_resilver <pool>
 pool_resilver () {
-  if zpool status "$1" | grep -q "scan: resilver in progress"; then
+  if $ZAP_PREFIX zpool status "$1" | grep -q "scan: resilver in progress"; then
     return 0
   fi
   return 1
