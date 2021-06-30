@@ -353,7 +353,7 @@ rep_full() {
     fi
   else # replicating remotely
     if [ -n "$v_opt" ]; then
-      echo -n "zfs send -Lep $C_opt $lsnap "
+      printf "zfs send -Lep s %s " "$C_opt" "$lsnap"
       if [ -n "$ZAP_FILTER" ]; then echo "| $ZAP_FILTER "; fi
       echo "| ssh $sshto \"sh -c 'zfs recv -Fu $v_opt -d $rloc'\""
     fi
@@ -421,8 +421,8 @@ $rloc"
         fi
       else # replicate remotely
         if [ -n "$v_opt" ]; then
-          echo -n "zfs send -Le $C_opt $i $sp $lsnap "
-          if [ -n "$ZAP_FILTER" ]; then echo -n "| $ZAP_FILTER "; fi
+          printf "zfs send -Le %s %s %s %s " "$C_opt" "$i" "$sp" "$lsnap "
+          if [ -n "$ZAP_FILTER" ]; then printf "| %s " "$ZAP_FILTER"; fi
           echo "| ssh $sshto \"sh -c 'zfs recv -du $F_opt $v_opt $rloc'\""
         fi
         if rsend "-Le $C_opt $i $sp $lsnap" "zfs recv -du $F_opt $v_opt $rloc"; then
