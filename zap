@@ -156,9 +156,9 @@ val_dest () {
 
       # TODO: The test for the host or IP is not that helpful, because many
       # invalid IPs will match a valid hostname.
-      ([ -z "$un" ] || echo "$un" | grep -Eq "$unptn") && \
-        ([ -z "$host" ] || echo "$host" | \
-             grep -Eq "$hostptn|$ipv4ptn|$ipv6ptn") && \
+      { [ -z "$un" ] || echo "$un" | grep -Eq "$unptn"; } && \
+        { [ -z "$host" ] || echo "$host" | \
+              grep -Eq "$hostptn|$ipv4ptn|$ipv6ptn"; } && \
         echo "$ds" | grep -Eq "$dsptn"
       ;;
     *)
