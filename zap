@@ -169,7 +169,7 @@ val_dest () {
 }
 
 warn () {
-  echo "WARN: $*" > /dev/stderr
+  echo "WARN: $*" >&2
 }
 
 # ==============================================================================
@@ -627,6 +627,6 @@ case $1 in
   snap|snapshot) shift; snap_parse "$@" ;;
   rep|replicate) shift; rep_parse  "$@" ;;
   destroy)       shift; destroy    "$@" ;;
-  -v|-version|--version) echo "$version" > /dev/stderr ;;
+  -v|-version|--version) echo "$version" >&2 ;;
   *)             usage "${0##*/}: missing or unknown subcommand -- $1"; exit 1 ;;
 esac
