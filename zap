@@ -386,11 +386,6 @@ rep_full() {
     else warn "Failed to replicate $lsnap to $sshto:$rloc"
     fi
   else # replicating remotely
-    if [ -n "$v_opt" ]; then
-      printf "zfs send -Lep s %s " "$C_opt" "$lsnap"
-      if [ -n "$ZAP_FILTER" ]; then echo "| $ZAP_FILTER "; fi
-      echo "| ssh $sshto \"sh -c 'zfs recv -Fu $v_opt -d $rloc'\""
-    fi
     if rsend "-Lep $C_opt $lsnap" "zfs recv -Fu $v_opt -d $rloc'"; then
       [ -n "$v_opt" ] && \
         echo "zfs bookmark $lsnap $(echo "$lsnap" | sed 's/@/#/')"
@@ -454,11 +449,6 @@ $rloc"
         else warn "Failed to replicate $lsnap to $sshto:$rloc."
         fi
       else # replicate remotely
-        if [ -n "$v_opt" ]; then
-          printf "zfs send -Le %s %s %s %s " "$C_opt" "$i" "$sp" "$lsnap "
-          if [ -n "$ZAP_FILTER" ]; then printf "| %s " "$ZAP_FILTER"; fi
-          echo "| ssh $sshto \"sh -c 'zfs recv -du $F_opt $v_opt $rloc'\""
-        fi
         if rsend "-Le $C_opt $i $sp $lsnap" "zfs recv -du $F_opt $v_opt $rloc"; then
           [ -n "$v_opt" ] && \
             echo "zfs bookmark $lsnap $(echo "$lsnap" | sed 's/@/#/')"
@@ -521,9 +511,28 @@ $sshto:$rloc/$fs was not created by zap."
 }
 
 rsend() {
-  if [ -n "$ZAP_FILTER" ]; then
-    zfs send $1 | $ZAP_FILTER | ssh "$sshto" "sh -c '$ZAP_FILTER | $2'"
-   else
+  if [ -n "$ZAP_FILTER" ] || [ -n "$ZAP_FILTER_REMOTE" ]; then
+    if [ -n "$ZAP_FILTER" ]; then
+      if [ -z "$ZAP_FILTER_REMOTE" ]; then # Only ZAP_FILTER is set
+        ZAP_FILTER_REMOTE="$ZAP_FILTER"
+      fi
+      if [ -n "$v_opt" ]; then
+        printf "zfs send %s | %s | ssh %s sh -c '%s | %s'\\n" \
+               "$1" "$ZAP_FILTER" "$sshto" "$ZAP_FILTER_REMOTE" "$2"
+      else
+      fi
+      zfs send $1 | $ZAP_FILTER | ssh "$sshto" "sh -c '$ZAP_FILTER_REMOTE | $2'"
+    else # Only ZAP_FILTER_REMOTE is set
+      if [ -n "$v_opt" ]; then
+        printf "zfs send %s | ssh %s sh -c '%s | %s'\\n" "$1" "$sshto" \
+               "$ZAP_FILTER_REMOTE" "$2"
+      fi
+      zfs send $1 | ssh "$sshto" "sh -c '$ZAP_FILTER_REMOTE | $2'"
+    fi
+  else
+    if [ -n "$v_opt" ]; then
+      printf "zfs send %s | ssh %s sh -c '%s'\\n" "$1" "$sshto" "$2"
+    fi
     zfs send $1 | ssh "$sshto" "sh -c '$2'"
   fi
 }
