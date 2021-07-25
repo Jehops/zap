@@ -39,6 +39,8 @@
 # the authors a beer.
 #
 
+# if [ "$(zpool get -H -o value feature@encryption zroot)" = 'enabled' ]; then echo yes; else echo no; fi
+
 fatal () {
   echo "FATAL: $*" 1>&2
   exit 1
@@ -85,6 +87,14 @@ pool_resilver () {
     return 0
   fi
   return 1
+}
+
+# pool encs <pool>
+pool_encs () {
+  if [ "$(zpool get -H -o value feature@encryption "$1")" = 'active' ]; then
+    return 0;
+  fi
+  return 1;
 }
 
 # ss_st <snapshot>
@@ -362,10 +372,16 @@ rep_full() {
   # host                | val_dest()
   # fs,lsnap            | rep()
 
+  if pool_encs "${lsnap%%[/@]*}"; then
+    rep_args='-wp'
+  else
+    rep_args='-Lep'
+  fi
+
   if [ -z "$host" ]; then # replicating locally
     [ -n "$v_opt" ] && \
-      echo "zfs send -Lep $C_opt $lsnap | zfs recv -Fu $v_opt -d $rloc"
-    if zfs send -Lep $C_opt "$lsnap" | zfs recv -Fu $v_opt -d "$rloc"; then
+      echo "zfs send $rep_args $C_opt $lsnap | zfs recv -Fu $v_opt -d $rloc"
+    if zfs send $rep_args $C_opt "$lsnap" | zfs recv -Fu $v_opt -d "$rloc"; then
       [ -n "$v_opt" ] && \
         echo "zfs bookmark $lsnap $(echo "$lsnap" | sed 's/@/#/')"
       zfs bookmark "$lsnap" "$(echo "$lsnap" | sed 's/@/#/')"
@@ -386,7 +402,7 @@ rep_full() {
     else warn "Failed to replicate $lsnap to $sshto:$rloc"
     fi
   else # replicating remotely
-    if rsend "-Lep $C_opt $lsnap" "zfs recv -Fu $v_opt -d $rloc"; then
+    if rsend "$rep_args $C_opt $lsnap" "zfs recv -Fu $v_opt -d $rloc"; then
       [ -n "$v_opt" ] && \
         echo "zfs bookmark $lsnap $(echo "$lsnap" | sed 's/@/#/')"
       zfs bookmark "$lsnap" "$(echo "$lsnap" | sed 's/@/#/')"
@@ -418,6 +434,12 @@ rep_incr() {
   # host                           | val_dest()
   # lsnap,l_ts,rsnap,fs            | rep()
 
+  if pool_encs "${lsnap%%[/@]*}"; then
+    rep_args='-w'
+  else
+    rep_args='-Le'
+  fi
+
   r_ts=$(ss_ts "$(ss_st "$rsnap")")
   if [ "$l_ts" -gt "$r_ts" ]; then
     ## check if there is a local snapshot for the remote snapshot
@@ -436,10 +458,10 @@ intermediary snapshots will not be sent."
       if echo "$sp" | grep -q '@'; then i='-I'; else i='-i'; fi
       if [ -z "$host" ]; then # replicate locally
         [ -n "$v_opt" ] && \
-          echo "zfs send -Le $C_opt $i $sp $lsnap | zfs recv -du $F_opt $v_opt \
-$rloc"
-        if zfs send -Le $C_opt $i "$sp" "$lsnap" | zfs recv -du $F_opt $v_opt \
-                                                 "$rloc"; then
+          echo "zfs send $rep_args $C_opt $i $sp $lsnap | zfs recv -du $F_opt \
+$v_opt $rloc"
+        if zfs send $rep_args $C_opt $i "$sp" "$lsnap" | \
+            zfs recv -du $F_opt $v_opt "$rloc"; then
           [ -n "$v_opt" ] && \
             echo "zfs bookmark $lsnap $(echo "$lsnap" | sed 's/@/#/')"
           if zfs bookmark "$lsnap" "$(echo "$lsnap" | sed 's/@/#/')"; then
@@ -449,7 +471,8 @@ $rloc"
         else warn "Failed to replicate $lsnap to $sshto:$rloc."
         fi
       else # replicate remotely
-        if rsend "-Le $C_opt $i $sp $lsnap" "zfs recv -du $F_opt $v_opt $rloc"; then
+        if rsend "$rep_args $C_opt $i $sp $lsnap" \
+                 "zfs recv -du $F_opt $v_opt $rloc"; then
           [ -n "$v_opt" ] && \
             echo "zfs bookmark $lsnap $(echo "$lsnap" | sed 's/@/#/')"
           if zfs bookmark "$lsnap" "$(echo "$lsnap" | sed 's/@/#/')"; then
