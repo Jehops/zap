@@ -663,7 +663,7 @@ ttlptn='^[0-9]{1,4}[dwmy]$'
 unptn='^[[:alnum:]_][[:alnum:]_-]{0,31}$'
 zptn="@ZAP_(${hn})_..*--[0-9]{1,4}[dwmy]"
 
-readonly version=0.8.1
+readonly version=0.8.2
 
 case $1 in
   snap|snapshot) shift; snap_parse "$@" ;;
