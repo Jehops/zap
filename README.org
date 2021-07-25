@@ -120,6 +120,8 @@ and =rep= subcommands.
    - Victor Naumov <vicnaumov@gmail.com>
    - Dries Michiels <driesm.michiels@gmail.com>
    - HIROSE yuuji <yuuji@gentei.org>
+   - Maxime Soulé
+   - sevmonster
 ** License
    zap is released under a BSD 2-Clause License.  Refer to the header of each
    source file for details.
