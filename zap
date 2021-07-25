@@ -103,9 +103,43 @@ ss_ts () {
     'Darwin'|'FreeBSD')
       date -j -f'%Y-%m-%dT%H:%M:%S%z' "$1" +%s
       ;;
-    'Linux'|'SunOS')
-      gdate=$(echo "$1" | sed 's/T/ /')
-      date -d"$gdate" +%s
+    'SunOS')
+      date -d"$(echo "$1" | sed 's/T/ /')" +%s
+      ;;
+    'Linux')
+      if [ $is_busybox_date -eq 0 ]; then
+        # busybox does not support timezones by default
+        if [ $is_glibc -eq 0 ]; then
+          # busybox date can use [e]glibc strptime %z extension
+          date -D'%Y-%m-%dT%H:%M:%S%z' -d"$1" +%s
+        else
+          # need to calculate tz offset manually
+          # NOTE: no support for 'Z' offset, should never happen with %z fmt;
+          #       however, older versions of coreutils may use [+-]hh:mm
+          offset=$(echo "$1" | grep -Eo '[+-]\d\d:?\d\d$')
+          if [ $? -ne 0 ]; then
+            echo "bad snapshot timestamp: $1" >&2
+            exit 1
+          fi
+          sign=${offset:0:1}
+          h=${offset:1:2}
+          if [ "${offset:3:1}" = ':' ]; then
+            m=${offset:4:2}
+          else
+            m=${offset:3:2}
+          fi
+          if [ $m -gt 59 ]; then
+            echo "bad snapshot timezone offset: $offset" >&2
+            exit 1
+          fi
+          sec=$(date -ud"$(echo "${1%$offset}" | sed 's/T/ /')" +%s)
+          [ $? -ne 0 ] && exit 1
+          echo "$sec $sign (($h * 60 + $m) * -60)" | bc
+        fi
+      else
+        # assuming non-busybox date is coreutils which supports timezone offset
+        date -d"$(echo "$1" | sed 's/T/ /')" +%s
+      fi
       ;;
     'NetBSD')
       ndate=$(echo "$1" | sed 's/\+.*//;s/[T-]//g;s/://;s/:/./')
@@ -584,6 +618,14 @@ case $os in
       Feedback and patches are welcome.
 " ;;
 esac
+
+if [ "$os" = Linux ]; then
+  # cache some checks
+  ldd --version 2>&1 | head -1 | grep -Eqiw 'e?glibc'
+  is_glibc=$?
+  [ "busybox" = "$(basename "$(readlink -f "$(command -v date)")")" ]
+  is_busybox_date=$?
+fi
 
 date=$(date '+%Y-%m-%dT%H:%M:%S%z' | sed 's/+/p/')
 hn=$(hostname -s)
