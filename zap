@@ -519,7 +519,6 @@ rsend() {
       if [ -n "$v_opt" ]; then
         printf "zfs send %s | %s | ssh %s sh -c '%s | %s'\\n" \
                "$1" "$ZAP_FILTER" "$sshto" "$ZAP_FILTER_REMOTE" "$2"
-      else
       fi
       zfs send $1 | $ZAP_FILTER | ssh "$sshto" "sh -c '$ZAP_FILTER_REMOTE | $2'"
     else # Only ZAP_FILTER_REMOTE is set
