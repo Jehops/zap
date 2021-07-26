@@ -386,7 +386,7 @@ rep_full() {
     else warn "Failed to replicate $lsnap to $sshto:$rloc"
     fi
   else # replicating remotely
-    if rsend "-Lep $C_opt $lsnap" "zfs recv -Fu $v_opt -d $rloc'"; then
+    if rsend "-Lep $C_opt $lsnap" "zfs recv -Fu $v_opt -d $rloc"; then
       [ -n "$v_opt" ] && \
         echo "zfs bookmark $lsnap $(echo "$lsnap" | sed 's/@/#/')"
       zfs bookmark "$lsnap" "$(echo "$lsnap" | sed 's/@/#/')"
