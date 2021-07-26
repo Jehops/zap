@@ -497,7 +497,7 @@ a resilver in progress."
 creation ${rloc}${fs} 2>/dev/null | head -n1'" | sed 's/^.*@/@/')
     fi
     # add raw (-w) flag for encrypted datasets
-    if [ "$(zfs get -H -o value encryption "$1")" != off ]; then
+    if [ "$(zfs get -H -o value encryption "$1" 2>/dev/null)" != off ]; then
       raw='-w'
     else
       raw=''
