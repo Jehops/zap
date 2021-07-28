@@ -39,8 +39,6 @@
 # the authors a beer.
 #
 
-# if [ "$(zpool get -H -o value feature@encryption zroot)" = 'enabled' ]; then echo yes; else echo no; fi
-
 fatal () {
   echo "FATAL: $*" 1>&2
   exit 1
@@ -287,7 +285,7 @@ rep_parse () {
   done
   shift $(( OPTIND - 1 ))
 
-  if [ -n "$C_opt" ]; then # user has request no compression
+  if [ -n "$C_opt" ]; then # user has requested no compression
     C_opt=
   else # use compression by default
     C_opt='-c'
