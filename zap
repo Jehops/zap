@@ -89,7 +89,7 @@ pool_resilver () {
 
 # pool encs <pool>
 pool_encs () {
-  if [ "$(zpool get -H -o value feature@encryption "$1")" = 'enabled' ]; then
+  if [ "$(zpool get -H -o value feature@encryption "$1")" = 'active' ]; then
     return 0;
   fi
   return 1;
