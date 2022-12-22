@@ -442,9 +442,9 @@ rep_incr() {
   if [ "$l_ts" -gt "$r_ts" ]; then
     ## check if there is a local snapshot for the remote snapshot
     if ! sp=$(zfs list -rd1 -t snap -H -o name "$1" | grep "$rsnap"); then
-      warn "Failed to find local snapshot for remote snapshot\
+      warn "Failed to find local snapshot for remote snapshot \
 ${rloc}${fs}${rsnap}."
-      warn "Will attempt to fall back to a bookmark, but all\
+      warn "Will attempt to fall back to a bookmark, but all \
 intermediary snapshots will not be sent."
     fi
     ## check if there is a bookmark for the remote snapshot
